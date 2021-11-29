@@ -13,7 +13,7 @@ module.exports.subscriber = async (event, context) => {
     if ('source' in event && event['source'] == 'aws.ec2' && event['detail']['state'] == 'running') {
         instance_id = event['detail']['instance-id']
         try {
-          tags = json.parse(tag_string);
+          tags = JSON.parse(tag_string);
         }
         catch (e) {
             console.error('Failure parsing JSON tags environment variable string: $s and failed with error $s', tag_string, e);
