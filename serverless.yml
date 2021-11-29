@@ -1,0 +1,172 @@
+# ----------------------- #
+# Serverless Service Name #
+# ----------------------- #
+
+service: aws-node-ec2-alarm-project
+
+# ------------------------- #
+# Framework Version Setting #
+# ------------------------- #
+
+frameworkVersion: '^2.6.0'
+
+# ---------------------- #
+# Plugins For Serverless #
+# ---------------------- #
+
+plugins:
+  - serverless-cloudformation-sub-variables
+  - serverless-iam-roles-per-function
+
+# -------------------------- #
+# Provider Resources and IAM #
+# -------------------------- #
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  stage: dev
+  region: eu-west-2
+  lambdaHashingVersion: 20201221
+  variablesResolutionMode: 20210326
+  tags:
+    Company: DevOpsGroup
+    Environment: ${opt:stage}
+    Region: ${aws:region}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogGroups
+          Resource: !Sub 'arn:aws:logs:${aws:accountId}-${aws:region}:log-group:*'
+        - Effect: Allow
+          Action:
+            - logs:PutLogEvents
+          Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*"
+        - Effect: Allow
+          Principal:
+            Service:
+              - cloudwatch.amazonaws.com
+          Action:
+            - sns:Publish
+          Resource: !Ref EC2DatadogSnsTopic
+        - Effect: Allow
+          Principal:
+            Service:
+              - lambda.amazonaws.com
+          Action:
+            - sts:AssumeRole
+        - Effect: Allow
+          Principal:
+            Service:
+              - events.amazonaws.com
+          Action:
+            - lambda:InvokeFunction
+
+# ------------------------- #
+# Lambda Function Resources #
+# ------------------------- #
+
+functions:
+  subscriber:
+    name: 'EC2-recovery-lambda-subscriber-function-${aws:accountId}-${aws:region}'
+    handler: "functions/subscriber"
+    memorySize: 512
+    environment:
+          TAGS: '[{"Key": "EC2_Auto_Recovery", "Value": "Enabled"}]'
+          SNS_TOPIC_ARN: !Ref EC2DatadogSnsTopic
+          REGION: ${aws:region}
+    iamRoleStatementsInherit: true
+    iamRoleStatementsName: 'EC2-Subscriber-Lambda-IAM-Role-${aws:accountId}-${aws:region}'
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - ec2:CreateTags
+        Resource: !Sub 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
+      - Effect: Allow
+        Action:
+          - ec2:DescribeInstances
+          - ec2:DescribeImages
+        Resource: '*'
+      - Effect: Allow
+        Action:
+          - cloudwatch:DescribeAlarms
+          - cloudwatch:DeleteAlarms
+          - cloudwatch:PutMetricAlarm
+          - cloudwatch:PutMetricData
+        Resource: !Sub 'arn:aws:cloudwatch:${aws:region}:${aws:accountId}:alarm:AutoAlarm-*'
+    events:
+        - cloudwatchEvent:
+            description: 'CloudWatch Event triggered on EC2 Instance running state'
+            event:
+              source:
+                - 'aws.ec2'
+              detail-type:
+                - 'EC2 Instance State-change Notification'
+              detail:
+                state:
+                  - running
+                  - terminated
+            enabled: true
+    deadLetter:
+      sqs: !Ref EC2SubscriberDLQ
+
+  resolver:
+    name: 'EC2-recovery-lambda-resolver-function-${aws:accountId}-${aws:region}'
+    handler: "functions/resolver"
+    memorySize: 512
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - ec2:CreateTags
+        Resource: !Sub 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
+      - Effect: Allow
+        Action:
+          -  ec2:StartInstances
+          -  ec2:StopInstances
+        Condition:
+          StringEquals:
+          aws:ResourceTag/EC2_Auto_Recovery": 'Enabled'
+        Resource: !Sub 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
+      - Effect: Allow
+        Action:
+          - ec2:DescribeInstances
+        Resource: '*'
+    events:
+      - sns:
+          arn: !Ref EC2DatadogSnsTopic
+          topicName: !GetAtt EC2DatadogSnsTopic.TopicName
+    deadLetter:
+      sqs: !Ref EC2ResolverDLQ
+
+# ------------------------ #
+# CloudFormation Resources #
+# ------------------------ #
+
+resources:
+  Resources:
+    EC2DatadogSnsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: 'Datadog-EC2-SNS-Topic-${aws:accountId}-${aws:region}'
+        DisplayName: EC2 recovery alarm activation pipeline
+    EC2SubscriberDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: !Sub 'EC2-alarm-subscriber-DLQ-${aws:accountId}-${aws:region}'
+    EC2ResolverDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: !Sub 'EC2-alarm-resolver-DLQ-${aws:accountId}-${aws:region}'
+    EC2LambdaSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: sean.jones@testmeplease.com
+        Protocol: email
+        TopicArn: !Ref EC2DatadogSnsTopic
+
