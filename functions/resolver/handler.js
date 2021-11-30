@@ -23,13 +23,11 @@ module.exports.resolver = async (event, context) => {
 
             var instance_id = json_alert_message['Tags']['InstanceID']
 
-            functions.reboot_ec2_instance(instance_id)
+            var response = functions.reboot_ec2_instance(instance_id)
         }
 
-        var response = functions.reboot_ec2_instance(instance_id)
-
         if (response == false) {
-            
+
             console.info ('reboot failed, try force stop start')
 
             var ebs_volumes = functions.check_ec2_ebs_type(instance_id)
