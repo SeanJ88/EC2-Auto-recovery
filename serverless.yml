@@ -172,6 +172,12 @@ resources:
       Properties:
         TopicName: 'Datadog-EC2-SNS-Topic-${aws:accountId}-${aws:region}'
         DisplayName: EC2 recovery alarm activation pipeline
+    EC2DataDogSnsSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Endpoint: event-1i8bqltl@dtdg.co
+        Protocol: email-json
+        TopicArn: !Ref EC2DatadogSnsTopic
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # EC2SubscriberDLQ:
     #   Type: AWS::SQS::Queue
@@ -182,10 +188,4 @@ resources:
     #   Type: AWS::SQS::Queue
     #   Properties:
     #     QueueName: 'EC2-alarm-resolver-DLQ-${aws:accountId}-${aws:region}'
-    EC2LambdaSubscription:
-      Type: AWS::SNS::Subscription
-      Properties:
-        Endpoint: event-1i8bqltl@dtdg.co
-        Protocol: email-json
-        TopicArn: !Ref EC2DatadogSnsTopic
 
