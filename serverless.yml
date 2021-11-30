@@ -16,11 +16,7 @@ frameworkVersion: '^2.6.0'
 
 plugins:
   - serverless-cloudformation-sub-variables
-  - serverless-iam-roles-per-function
-
-# -------------------------- #
-# Provider Resources and IAM #
-# -------------------------- #
+  - serverless-plugin-lambda-dead-letter
 
 provider:
   name: aws
@@ -28,44 +24,12 @@ provider:
   stage: dev
   region: eu-west-2
   lambdaHashingVersion: 20201221
-  variablesResolutionMode: 20210326
   tags:
     Company: DevOpsGroup
     Environment: ${opt:stage}
     Region: ${aws:region}
   iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
-            - logs:DescribeLogGroups
-          Resource: !Sub 'arn:aws:logs:${aws::region}:${aws::accountId}:log-group:*'
-        - Effect: Allow
-          Action:
-            - logs:PutLogEvents
-          Resource: !Sub 'arn:aws:logs:${aws::region}:${aws::accountId}:log-group:*:log-stream:*'
-        - Effect: Allow
-          Principal:
-            Service:
-              - cloudwatch.amazonaws.com
-          Action:
-            - sns:Publish
-          Resource: !Ref EC2DatadogSnsTopic
-        - Effect: Allow
-          Principal:
-            Service:
-              - lambda.amazonaws.com
-          Action:
-            - sts:AssumeRole
-        - Effect: Allow
-          Principal:
-            Service:
-              - events.amazonaws.com
-          Action:
-            - lambda:InvokeFunction
+    role: LambdaIAMRole                                                  
 
 # ------------------------- #
 # Lambda Function Resources #
@@ -80,40 +44,23 @@ functions:
           TAGS: '[{"Key": "EC2_Auto_Recovery", "Value": "Enabled"}]'
           SNS_TOPIC_ARN: !Ref EC2DatadogSnsTopic
           REGION: ${aws:region}
-    iamRoleStatementsInherit: true
-    iamRoleStatementsName: 'EC2-Subscriber-Lambda-IAM-Role-${aws:accountId}-${aws:region}'
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - ec2:CreateTags
-        Resource: !Sub 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
-      - Effect: Allow
-        Action:
-          - ec2:DescribeInstances
-          - ec2:DescribeImages
-        Resource: '*'
-      - Effect: Allow
-        Action:
-          - cloudwatch:DescribeAlarms
-          - cloudwatch:DeleteAlarms
-          - cloudwatch:PutMetricAlarm
-          - cloudwatch:PutMetricData
-        Resource: !Sub 'arn:aws:cloudwatch:${aws:region}:${aws:accountId}:alarm:AutoAlarm-*'
     events:
         - cloudwatchEvent:
             description: 'CloudWatch Event triggered on EC2 Instance running state'
             event:
               source:
                 - 'aws.ec2'
-              detail-type:
-                - 'EC2 Instance State-change Notification'
               detail:
                 state:
                   - running
                   - terminated
+                type:
+                  - 'EC2 Instance State-change Notification'
             enabled: true
-    deadLetter:
-      sqs: !Ref EC2SubscriberDLQ
+# Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
+    # deadLetter:
+    #   targetArn:
+    #     GetResourceArn: !Ref EC2DatadogSnsTopic
 
   resolver:
     name: 'EC2-recovery-lambda-resolver-function-${aws:accountId}-${aws:region}'
@@ -121,30 +68,14 @@ functions:
     memorySize: 512
     environment:
           SNS_TOPIC_ARN: !Ref EC2DatadogSnsTopic
-    iamRoleStatementsInherit: true
-    iamRoleStatements:
-      - Effect: Allow
-        Action:
-          - ec2:CreateTags
-        Resource: !Sub 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
-      - Effect: Allow
-        Action:
-          -  ec2:StartInstances
-          -  ec2:StopInstances
-        Condition:
-          StringEquals:
-          aws:ResourceTag/EC2_Auto_Recovery": 'Enabled'
-        Resource: !Sub 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
-      - Effect: Allow
-        Action:
-          - ec2:DescribeInstances
-        Resource: '*'
     events:
       - sns:
           arn: !Ref EC2DatadogSnsTopic
-          topicName: !GetAtt EC2DatadogSnsTopic.TopicName
-    deadLetter:
-      sqs: !Ref EC2ResolverDLQ
+          topicName: 'Datadog-EC2-SNS-Topic-${aws:accountId}-${aws:region}'
+# Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
+    # deadLetter:
+    #   targetArn:
+    #     GetResourceArn: !Ref EC2DatadogSnsTopic
 
 # ------------------------ #
 # CloudFormation Resources #
@@ -152,19 +83,105 @@ functions:
 
 resources:
   Resources:
+    LambdaIAMRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: 'EC2-Recovery-Lambda-execution-role-${aws:accountId}-${aws:region}'
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: 
+                - sts:AssumeRole
+            - Effect: Allow
+              Principal:
+                Service:
+                  - cloudwatch.amazonaws.com
+              Action:
+                - sns:Publish     
+            - Effect: Allow
+              Principal:
+                Service:
+                  - events.amazonaws.com
+              Action:
+                - lambda:InvokeFunction              
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        Policies:
+          - PolicyName: EC2Recovery-Lambda-Execution-policy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                    - logs:DescribeLogGroups
+                  Resource: 'arn:aws:logs:${aws:region}:${aws:accountId}:log-group:*'
+                - Effect: Allow
+                  Action:
+                    - logs:PutLogEvents
+                  Resource: 'arn:aws:logs:${aws:region}:${aws:accountId}:log-group:*:log-stream:*'
+                - Effect: Allow
+                  Action:
+                    - lambda:InvokeFunction
+                    - lambda:InvokeAsync
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateTags
+                  Resource: 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeInstances
+                    - ec2:DescribeImages
+                  Resource: '*'
+                - Effect: Allow
+                  Action:
+                    - cloudwatch:DescribeAlarms
+                    - cloudwatch:DeleteAlarms
+                    - cloudwatch:PutMetricAlarm
+                    - cloudwatch:PutMetricData
+                  Resource: 'arn:aws:cloudwatch:${aws:region}:${aws:accountId}:alarm:AutoAlarm-*'
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateTags
+                  Resource: 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
+                - Effect: Allow
+                  Action:
+                    -  ec2:StartInstances
+                    -  ec2:StopInstances
+                  Condition:
+                    StringEquals:
+                      aws:ResourceTag/EC2_Auto_Recovery": 'Enabled'
+                  Resource: 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeInstances
+                  Resource: '*'
+                - Effect: Allow
+                  Action:
+                    - sns:publish
+                  Resource: !Ref EC2DatadogSnsTopic
     EC2DatadogSnsTopic:
       Type: AWS::SNS::Topic
       Properties:
         TopicName: 'Datadog-EC2-SNS-Topic-${aws:accountId}-${aws:region}'
         DisplayName: EC2 recovery alarm activation pipeline
-    EC2SubscriberDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: !Sub 'EC2-alarm-subscriber-DLQ-${aws:accountId}-${aws:region}'
-    EC2ResolverDLQ:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: !Sub 'EC2-alarm-resolver-DLQ-${aws:accountId}-${aws:region}'
+# Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
+    # EC2SubscriberDLQ:
+    #   Type: AWS::SQS::Queue
+    #   Properties:
+    #     QueueName: 'EC2-alarm-subscriber-DLQ-${aws:accountId}-${aws:region}'
+# Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
+    # EC2ResolverDLQ:
+    #   Type: AWS::SQS::Queue
+    #   Properties:
+    #     QueueName: 'EC2-alarm-resolver-DLQ-${aws:accountId}-${aws:region}'
     EC2LambdaSubscription:
       Type: AWS::SNS::Subscription
       Properties:

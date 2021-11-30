@@ -28,7 +28,7 @@ module.exports.resolver = async (event, context) => {
 
         if (response == false) {
 
-            console.info ('reboot failed, try force stop start')
+            console.info('reboot failed, try force stop start')
 
             var ebs_volumes = functions.check_ec2_ebs_type(instance_id)
 
