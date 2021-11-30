@@ -42,11 +42,11 @@ provider:
             - logs:CreateLogStream
             - logs:PutLogEvents
             - logs:DescribeLogGroups
-          Resource: !Sub 'arn:aws:logs:${aws:accountId}-${aws:region}:log-group:*'
+          Resource: !Sub 'arn:aws:logs:${aws::region}:${aws::accountId}:log-group:*'
         - Effect: Allow
           Action:
             - logs:PutLogEvents
-          Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*"
+          Resource: !Sub 'arn:aws:logs:${aws::region}:${aws::accountId}:log-group:*:log-stream:*'
         - Effect: Allow
           Principal:
             Service:
@@ -119,6 +119,8 @@ functions:
     name: 'EC2-recovery-lambda-resolver-function-${aws:accountId}-${aws:region}'
     handler: "functions/resolver"
     memorySize: 512
+    environment:
+          SNS_TOPIC_ARN: !Ref EC2DatadogSnsTopic
     iamRoleStatementsInherit: true
     iamRoleStatements:
       - Effect: Allow
@@ -166,7 +168,7 @@ resources:
     EC2LambdaSubscription:
       Type: AWS::SNS::Subscription
       Properties:
-        Endpoint: sean.jones@testmeplease.com
-        Protocol: email
+        Endpoint: event-1i8bqltl@dtdg.co
+        Protocol: email-json
         TopicArn: !Ref EC2DatadogSnsTopic
 

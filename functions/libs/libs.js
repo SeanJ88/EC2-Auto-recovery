@@ -5,9 +5,9 @@ const cloudwatchevents = new aws.CloudWatchEvents();
 const cw_client = new aws.CloudWatch()
 const alarms = ['StatusCheckFailed_System', 'StatusCheckFailed_Instance']
 
-function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
+export function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
 
-    let params = { Resources: [instance_id], Tags=tags }
+    var params = { Resources: [instance_id], Tags=tags }
 
     try {
         instance = ec2.describe_instances({
@@ -15,7 +15,7 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
                 {
                     'Name': 'EC2_Auto_Recovery',
                     'Values': [
-                        "Enabled"
+                        'Enabled'
                     ]
                 }
             ],
@@ -36,13 +36,13 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
                     {
                         'Name': 'dd-monitoring',
                         'Values': [
-                            "true"
+                            'true'
                         ]
                     },
                     {
                         'Name': 'dd-mute',
                         'Values': [
-                            "false"
+                            'false'
                         ]
                     },
                 ],
@@ -66,7 +66,7 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
     }
 }
 
-function determine_platform(imageid) {
+export function determine_platform(imageid) {
     try {
         image_info = ec2.describe_images(ImageIds = [imageid])
 
@@ -109,11 +109,11 @@ function determine_platform(imageid) {
 
 // Alarm Name Format: AutoAlarm-<InstanceId>-<platform>-<alarm>-<region>
 // Example:  AutoAlarm-i-00e4f327736cb077f-RedHat-StatusCheckFailed_System-eu-west-2
-function create_alarm(instance_id, platform, sns_topic_arn, region) {
+export function create_alarm(instance_id, platform, sns_topic_arn, region) {
 
     for (alarm in alarms) {
 
-        let params = {
+        var params = {
             Tags: [
                 {
                     Key: 'InstanceID',
@@ -134,12 +134,12 @@ function create_alarm(instance_id, platform, sns_topic_arn, region) {
             ]
         };
 
-        alarmName = `ÀutoAlarm-${instance_id}-${platform}-${alarm}-${region}`
+        var alarmName = `ÀutoAlarm-${instance_id}-${platform}-${alarm}-${region}`
 
-        alarmDescription = 'Alarm created by lambda function EC2-recovery-lambda-subscriber-function'
+        var alarmDescription = 'Alarm created by lambda function EC2-recovery-lambda-subscriber-function'
 
         try {
-            alarmProperties = {
+            var alarmProperties = {
                 'AlarmName': alarmName,
                 'AlarmDescription': alarmDescription,
                 'AlarmActions': [`arn:aws:automate:${region}:ec2:recover`, `${sns_topic_arn}`],
@@ -175,58 +175,119 @@ function create_alarm(instance_id, platform, sns_topic_arn, region) {
     }
 }
 
-function create_cloudwatch_eventrule(sns_topic_arn) {
+export function create_cloudwatch_eventrule(sns_topic_arn) {
 
-    let cloudwatchRule = cloudwatchevents.putRule({
-        Name: 'EC2-Recovery-status-trigger',
-        Description: 'Event rule to trigger if EC2 Recovery is a success of failure',
-        EventPattern: JSON.parse(
-            {
-                "detail": {
-                    "eventTypeCategory": [
-                        "issue"
+    try {
+        var cloudwatchRule = cloudwatchevents.putRule({
+            Name: 'EC2-Recovery-status-trigger',
+            Description: 'Event rule to trigger if EC2 Recovery is a success of failure',
+            EventPattern: JSON.parse(
+                {
+                    'detail': {
+                        'eventTypeCategory': [
+                            'issue'
+                        ],
+                        'service': [
+                            'EC2'
+                        ],
+                        'eventTypeCodes': [
+                            'AWS_EC2_INSTANCE_AUTO_RECOVERY_FAILURE',
+                            'AWS_EC2_INSTANCE_AUTO_RECOVERY_SUCCESS'
+                        ]
+                    },
+                    'detail-type': [
+                        'AWS Health Event'
                     ],
-                    "service": [
-                        "EC2"
-                    ],
-                    "eventTypeCodes": [
-                        "AWS_EC2_INSTANCE_AUTO_RECOVERY_FAILURE",
-                        "AWS_EC2_INSTANCE_AUTO_RECOVERY_SUCCESS"
+                    'source': [
+                        'aws.health'
                     ]
-                },
-                "detail-type": [
-                    "AWS Health Event"
-                ],
-                "source": [
-                    "aws.health"
-                ]
-            })
-    })
+                })
+        })
 
-    cloudwatchevents.putTargets({
-        Rule: cloudwatchRule,
-        Targets: [{
-            Id: 'DataDogSNSTopic',
-            Arn: sns_topic_arn
-        }]
-    })
+        cloudwatchevents.putTargets({
+            Rule: cloudwatchRule,
+            Targets: [{
+                Id: 'DataDogSNSTopic',
+                Arn: sns_topic_arn
+            }]
+        })
+    } catch (e) {
+        console.error('Error creating event rule or adding target $s, error code: $s', cloudwatchRule, e)
+    }
 }
 
-function delete_alarm_if_instance_terminated(instance_id) {
+export function devare_alarm_if_instance_terminated(instance_id) {
     try {
-        let alarmNamePrefix = `AutoAlarm-${instance_id}`;
+        var alarmNamePrefix = `AutoAlarm-${instance_id}`;
         console.info('Call describe cloudwatch alarms to get alarms with prefix $s', alarmNamePrefix)
         const response = cw_client.describeAlarms(AlarmNamePrefix = alarmNamePrefix)
-        alarm_list = []
+        var alarm_list = []
         if ('MetricAlarms' in response) {
             for (alarm in response['MetricAlarms']) {
-                alarm_name = alarm['AlarmName']
+                var alarm_name = alarm['AlarmName']
                 alarm_list.append(alarm_name)
             }
-            remove_alarms = cw_client.delete_alarms(AlarmNames = alarm_list)
+            cw_client.devare_alarms(AlarmNames = alarm_list)
         }
         return true
     } catch (e) {
-        console.error('Error deleting alarms for $s, error code: $s', instance_id, e)
+        console.error('Error devaring alarms for $s, error code: $s', instance_id, e)
     }
+}
+
+export function reboot_ec2_instance(instance_id) {
+
+    var instance_successfully_restarted = false;
+    var instance_reachability_failed = false;
+
+    ec2.reboot_instances(InstanceIds=[instance_id])
+
+    while (instance_successfully_restarted == false || instance_reachability_failued == false) {
+        var response = ec2.describe_instance_status(InstanceIds=[instance_id])
+
+        if (response['InstanceStatuses'][0]['instance-status']['reachability'] == 'failed') {
+            console.info('Instance successfully restarted')
+            instance_reachability_failed = true
+            return false
+        }
+        else if (response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running') {
+            console.info('Instance successfully restarted')
+            instance_successfully_restarted = true
+            return true
+        }
+    }
+}
+
+export function check_ec2_ebs_type(instance_id) {
+
+    var volume_ids = []
+
+    try {
+        var instance = ec2.describeInstances(InstanceIds=[instance_id])
+
+        if ('Reservations' in instance && len(instance['Reservations']) > 0 &&
+            len(instance['Reservations'][0]['Instances']) > 0) {
+            instance_info = instance['Reservations'][0]['Instances'][0]
+        }
+        else {
+            console.info('No EC2 instance found')
+            return false
+        }
+
+        var volumes = instance_info['BlockDeviceMappings']
+
+        for (volume in volumes) {
+            if ('Ebs' in volume) {
+                volume_ids.append(volume['Ebs']['VolumeId'])
+            }
+            else {
+                return false
+            }
+        }
+        return volume_ids
+    } catch (e) {
+        console.error('Failure describing instance $s', instance_id)
+    }
+
+
 }
