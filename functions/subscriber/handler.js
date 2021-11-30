@@ -36,7 +36,7 @@ module.exports.subscriber = async (event, context) => {
     }
     else if ('source' in event && event['source'] == 'aws.ec2' && event['detail']['state'] == 'terminated') {
       var instance_id = event['detail']['instance-id']
-      var result = functions.devare_alarm_if_instance_terminated(instance_id)
+      var result = functions.delete_alarm_if_instance_terminated(instance_id)
       return console.log('Alarm has been devared %s', result)
     }
   } catch (e) {

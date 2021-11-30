@@ -216,7 +216,7 @@ export function create_cloudwatch_eventrule(sns_topic_arn) {
     }
 }
 
-export function devare_alarm_if_instance_terminated(instance_id) {
+export function delete_alarm_if_instance_terminated(instance_id) {
     try {
         var alarmNamePrefix = `AutoAlarm-${instance_id}`;
         console.info('Call describe cloudwatch alarms to get alarms with prefix $s', alarmNamePrefix)
