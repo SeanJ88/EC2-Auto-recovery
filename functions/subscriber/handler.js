@@ -27,7 +27,7 @@ module.exports.subscriber = async (event, context) => {
 
         var alarm = await functions.create_alarm(instance_id, platform, sns_topic_arn, region)
 
-        return console.log('Alarm and event rule %s has been created', JSON.stringify(alarm))
+        return console.log('Alarm %s has been created', JSON.stringify(alarm))
       }
 
     }

@@ -177,7 +177,7 @@ async function create_alarm(instance_id, platform, sns_topic_arn, region) {
             console.error('Error creating alarm %s!: %s', alarmName, e)
         }
     }
-    return alarmName + ' ' + JSON.stringify(eventrule)
+    return alarmName
 }
 
 function delete_alarm_if_instance_terminated(instance_id) {
