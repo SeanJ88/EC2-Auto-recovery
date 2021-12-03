@@ -17,15 +17,15 @@ module.exports.subscriber = async (event, context) => {
         return console.error('Failure parsing JSON tags environment variable string: %s and failed with error %s', tag_string, e);
       }
 
-      var instance_info = functions.check_ec2_tag_exists_and_add_if_not(instance_id, tags)
+      var instance_info = await functions.check_ec2_tag_exists_and_add_if_not(instance_id, tags)
 
       if (instance_info) {
 
         var ImageId = instance_info['ImageId']
 
-        var platform = functions.determine_platform(ImageId)
+        var platform = await functions.determine_platform(ImageId)
 
-        var alarm = functions.create_alarm(instance_id, platform, sns_topic_arn, region)
+        var alarm = await functions.create_alarm(instance_id, platform, sns_topic_arn, region)
 
         return console.log('Alarm and event rule %s has been created', JSON.stringify(alarm))
       }
@@ -33,6 +33,7 @@ module.exports.subscriber = async (event, context) => {
     }
     else if ('source' in event && event['source'] == 'aws.ec2' && event['detail']['state'] == 'terminated') {
       var instance_id = event['detail']['instance-id']
+      var result = await functions.delete_alarm_if_instance_terminated(instance_id)
       if (result) {
         return console.log('Alarm has been deleted %s', result)
       }

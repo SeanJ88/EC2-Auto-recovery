@@ -50,12 +50,12 @@ functions:
             event:
               source:
                 - 'aws.ec2'
+              detail-type:
+                  - 'EC2 Instance State-change Notification'
               detail:
                 state:
                   - running
                   - terminated
-                type:
-                  - 'EC2 Instance State-change Notification'
             enabled: true
 
             
@@ -112,6 +112,7 @@ resources:
                 - sts:AssumeRole              
         ManagedPolicyArns:
           - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
         Policies:
           - PolicyName: EC2Recovery-Lambda-Execution-policy
             PolicyDocument:

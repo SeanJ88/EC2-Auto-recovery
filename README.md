@@ -222,20 +222,5 @@ step by step to test each edge case.
 
 ### Suggested Improvements
 
-Currently, the Two Lambda Functions are written in NodeJS and are 
-currently are await functions.
-
-All logic for the Lambdas are contained in the lib.js file.
-
-This file contains all the functions the Lambdas call to complete 
-their functionality.
-
-These functions are currently not await/promise functions.
-
-To improve this repo, it might be worth changing the functions in 
-lib.js to allow for async await and promise.
-
-This will make the Lambdas more functional.
-
 Potentially update JEST Tests to use AWS Mock to mock the AWS
 API Calls to test the Logic more efficiently without using example Data.
