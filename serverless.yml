@@ -2,7 +2,7 @@
 # Serverless Service Name #
 # ----------------------- #
 
-service: aws-node-ec2-alarm-project
+service: ec2-auto-subscribe-recovery-lambda-project
 
 # ------------------------- #
 # Framework Version Setting #
