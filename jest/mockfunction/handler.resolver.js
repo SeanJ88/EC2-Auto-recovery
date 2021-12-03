@@ -1,6 +1,6 @@
 'use strict';
 
-const functions = require('../libs/libs.js');
+const functions = require('./libs.js');
 const sns_topic_arn = process.env.SNS_TOPIC_ARN
 
 module.exports.resolver = async (event, context) => {

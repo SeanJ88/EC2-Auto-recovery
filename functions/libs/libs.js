@@ -1,17 +1,18 @@
 const aws = require('aws-sdk')
 const sns = new aws.SNS()
 const ec2 = new aws.EC2()
+const autoscale = new aws.AutoScaling()
 const cloudwatchevents = new aws.CloudWatchEvents();
 const cw_client = new aws.CloudWatch()
 const alarms = ['StatusCheckFailed_System', 'StatusCheckFailed_Instance']
 
-export function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
+function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
 
-    var params = { Resources: [instance_id], Tags=tags }
+    var params = { Resources: [instance_id], Tags: tags }
 
     try {
         instance = ec2.describe_instances({
-            Filters=[
+            Filters: [
                 {
                     'Name': 'EC2_Auto_Recovery',
                     'Values': [
@@ -19,20 +20,20 @@ export function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
                     ]
                 }
             ],
-            InstanceIds=[
+            InstanceIds: [
                 instance_id
             ]
         })
 
-        if ('Reservations' in instance && len(instance['Reservations']) > 0 &&
-            len(instance['Reservations'][0]['Instances']) > 0) {
-            console.info('Tag EC2_Recovery_Enabled_already exists')
+        if ('Reservations' in instance && instance['Reservations'].length > 0 &&
+            instance['Reservations'][0]['Instances'].length > 0) {
+            console.info('Tag EC2_Auto_Recovery exists')
             return false;
 
         } else {
 
             instance = ec2.describe_instances({
-                Filters=[
+                Filters: [
                     {
                         'Name': 'dd-monitoring',
                         'Values': [
@@ -46,13 +47,13 @@ export function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
                         ]
                     },
                 ],
-                InstanceIds=[
+                InstanceIds: [
                     instance_id
                 ]
             })
-            if ('Reservations' in instance && len(instance['Reservations']) > 0 &&
-                len(instance['Reservations'][0]['Instances']) > 0) {
-                console.info('Tag EC2_Recovery_Enabled Does not Exist, Creating Tag')
+            if ('Reservations' in instance && instance['Reservations'].length > 0 &&
+                instance['Reservations'][0]['Instances'].length > 0) {
+                console.info('Tag EC2_Auto_Recovery Does not Exist, Creating Tag')
                 ec2.create_tags(params)
                 return instance['Reservations'][0]['Instances'][0]
             }
@@ -62,31 +63,31 @@ export function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
             }
         }
     } catch (e) {
-        console.error('Failure describing instance $s with tags: $s', instance_id, tags)
+        console.error('Failure describing instance %s with tags: %s', instance_id, tags, e)
     }
 }
 
-export function determine_platform(imageid) {
+function determine_platform(imageid) {
     try {
-        image_info = ec2.describe_images(ImageIds = [imageid])
+        var image_info = ec2.describe_images(ImageIds = [imageid])
 
-        if ('Images' in image_info && len(image_info['Images']) > 0) {
-            platform_details = image_info['Images'][0]['PlatformDetails']
+        if (image_info['Images'] && image_info['Images'].length > 0) {
+            var platform_details = image_info['Images'][0]['PlatformDetails']
 
             console.debug('Platform details of image: %s', platform_details)
 
-            if ('Windows' in platform_details || 'SQL Server' in platform_details) {
+            if (platform_details.includes('Windows') || platform_details.includes('SQL Server')) {
                 return 'Windows'
             }
-            if ('Red Hat' in platform_details) {
+            if (platform_details.includes('Red Hat')) {
                 return 'Red-Hat'
             }
-            if ('SUSE' in platform_details) {
+            if (platform_details.includes('SUSE')) {
                 return 'SUSE'
             }
-            if ('Linux/UNIX' in platform_details) {
-                if ('ubuntu' in image_info['Images'][0]['Description'].lower() || 'ubuntu' in image_info['Images'][0][
-                    'Name'].lower()) {
+            if (platform_details.includes('Linux/UNIX')) {
+                if (image_info['Images'][0]['Description'].lower().includes('ubuntu') || image_info['Images'][0][
+                    'Name'].lower().includes('ubuntu')) {
                     return 'Ubuntu'
                 }
                 else {
@@ -94,24 +95,24 @@ export function determine_platform(imageid) {
                 }
             }
             else {
-                return None
+                return 'Unknown'
             }
         }
         else {
-            return None
+            return 'Unknown'
         }
     }
     catch (e) {
-        console.error('Failure describing image $s, $s', imageid, e)
+        console.error('Failure describing image %s, %s', imageid, e)
     }
 }
 
 
 // Alarm Name Format: AutoAlarm-<InstanceId>-<platform>-<alarm>-<region>
 // Example:  AutoAlarm-i-00e4f327736cb077f-RedHat-StatusCheckFailed_System-eu-west-2
-export function create_alarm(instance_id, platform, sns_topic_arn, region) {
+function create_alarm(instance_id, platform, sns_topic_arn, region) {
 
-    for (alarm in alarms) {
+    for (const alarm of alarms) {
 
         var params = {
             Tags: [
@@ -165,7 +166,9 @@ export function create_alarm(instance_id, platform, sns_topic_arn, region) {
 
             console.info('Created alarm %s', alarmName)
 
-            create_cloudwatch_eventrule(sns_topic_arn)
+            var eventrule = create_cloudwatch_eventrule(sns_topic_arn)
+
+            return alarmName + ' ' + JSON.stringify(eventrule)
         }
 
         catch (e) {
@@ -175,51 +178,57 @@ export function create_alarm(instance_id, platform, sns_topic_arn, region) {
     }
 }
 
-export function create_cloudwatch_eventrule(sns_topic_arn) {
+function create_cloudwatch_eventrule(sns_topic_arn) {
 
     try {
-        var cloudwatchRule = cloudwatchevents.putRule({
+        var cloudwatchRule =
+        {
             Name: 'EC2-Recovery-status-trigger',
-            Description: 'Event rule to trigger if EC2 Recovery is a success of failure',
-            EventPattern: JSON.parse(
-                {
-                    'detail': {
-                        'eventTypeCategory': [
-                            'issue'
-                        ],
-                        'service': [
-                            'EC2'
-                        ],
-                        'eventTypeCodes': [
-                            'AWS_EC2_INSTANCE_AUTO_RECOVERY_FAILURE',
-                            'AWS_EC2_INSTANCE_AUTO_RECOVERY_SUCCESS'
-                        ]
-                    },
-                    'detail-type': [
-                        'AWS Health Event'
+            Description: 'Event Rule to Trigger if EC2 Recovery is a Success or Failure',
+            EventPattern:
+            {
+                'detail': {
+                    'eventTypeCategory': [
+                        'issue'
                     ],
-                    'source': [
-                        'aws.health'
+                    'service': [
+                        'EC2'
+                    ],
+                    'eventTypeCodes': [
+                        'AWS_EC2_INSTANCE_AUTO_RECOVERY_FAILURE',
+                        'AWS_EC2_INSTANCE_AUTO_RECOVERY_SUCCESS'
                     ]
-                })
-        })
+                },
+                'detail-type': [
+                    'AWS Health Event'
+                ],
+                'source': [
+                    'aws.health'
+                ]
+            }
+        }
 
-        cloudwatchevents.putTargets({
+        cloudwatchevents.putRule(cloudwatchRule)
+
+        var target =
+        {
             Rule: cloudwatchRule,
             Targets: [{
                 Id: 'DataDogSNSTopic',
                 Arn: sns_topic_arn
             }]
-        })
+        }
+        cloudwatchevents.putTargets(target)
+        return target
     } catch (e) {
-        console.error('Error creating event rule or adding target $s, error code: $s', cloudwatchRule, e)
+        console.error('Error creating event rule or adding target %s, error code: %s', cloudwatchRule, e)
     }
 }
 
-export function delete_alarm_if_instance_terminated(instance_id) {
+function delete_alarm_if_instance_terminated(instance_id) {
     try {
         var alarmNamePrefix = `AutoAlarm-${instance_id}`;
-        console.info('Call describe cloudwatch alarms to get alarms with prefix $s', alarmNamePrefix)
+        console.info('Call describe cloudwatch alarms to get alarms with prefix %s', alarmNamePrefix)
         const response = cw_client.describeAlarms(AlarmNamePrefix = alarmNamePrefix)
         var alarm_list = []
         if ('MetricAlarms' in response) {
@@ -227,46 +236,78 @@ export function delete_alarm_if_instance_terminated(instance_id) {
                 var alarm_name = alarm['AlarmName']
                 alarm_list.append(alarm_name)
             }
-            cw_client.devare_alarms(AlarmNames = alarm_list)
+            cw_client.delete_alarms(AlarmNames = alarm_list)
+            return AlarmNames
         }
-        return true
+        console.info('No MetricAlarms in response given')
+        return false
     } catch (e) {
-        console.error('Error devaring alarms for $s, error code: $s', instance_id, e)
+        console.error('Error deleting alarms for %s, error code: %s', instance_id, e)
     }
 }
 
-export function reboot_ec2_instance(instance_id) {
+function reboot_ec2_instance(instance_id) {
 
     var instance_successfully_restarted = false;
     var instance_reachability_failed = false;
+    var reboot_count = 0;
 
-    ec2.reboot_instances(InstanceIds=[instance_id])
+    instance = ec2.describe_instances({
+        Filters: [
+            {
+                'Name': 'EC2_Auto_Recovery',
+                'Values': [
+                    'Disabled'
+                ]
+            }
+        ],
+        InstanceIds: [
+            instance_id
+        ]
+    })
+
+    if (instance['Reservations'] && instance['Reservations'].length > 0 &&
+        instance['Reservations'][0]['Instances'].length > 0) {
+        console.info('Tag EC2_Auto_Recovery has been disabled...aborting')
+        return None;
+    }
+
+    ec2.reboot_instances({ InstanceIds: [instance_id] })
 
     while (instance_successfully_restarted == false || instance_reachability_failued == false) {
-        var response = ec2.describe_instance_status(InstanceIds=[instance_id])
+        var response = ec2.describe_instance_status({ InstanceIds: [instance_id] })
 
-        if (response['InstanceStatuses'][0]['instance-status']['reachability'] == 'failed') {
-            console.info('Instance successfully restarted')
-            instance_reachability_failed = true
-            return false
+        if (response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
+            response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'failed') {
+            console.info('Instance is still in a failed state, reboot instance again')
+            ec2.reboot_instances({ InstanceIds: [instance_id] })
+            reboot_count = reboot_count + 1
+            console.info(reboot_count)
+            if (reboot_count == 5) {
+                console.log('Instance is still in a failed state after 5 reboot attempts, move to force start stop')
+                instance_reachability_failed = true
+                return false
+            }
         }
-        else if (response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running') {
-            console.info('Instance successfully restarted')
+        else if (response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
+            response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
+            response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'passed') {
+            console.log('Instance is in a running state from restarting, all checks passed')
             instance_successfully_restarted = true
-            return true
+            return response
         }
     }
 }
 
-export function check_ec2_ebs_type(instance_id) {
+function check_ec2_ebs_type(instance_id) {
 
     var volume_ids = []
 
     try {
-        var instance = ec2.describeInstances(InstanceIds=[instance_id])
+        var instance = ec2.describe_instances({ InstanceIds: [instance_id] })
 
-        if ('Reservations' in instance && len(instance['Reservations']) > 0 &&
-            len(instance['Reservations'][0]['Instances']) > 0) {
+        if (instance['Reservations'] && instance['Reservations'].length > 0 &&
+            instance['Reservations'][0]['Instances'].length > 0) {
             instance_info = instance['Reservations'][0]['Instances'][0]
         }
         else {
@@ -276,8 +317,8 @@ export function check_ec2_ebs_type(instance_id) {
 
         var volumes = instance_info['BlockDeviceMappings']
 
-        for (volume in volumes) {
-            if ('Ebs' in volume) {
+        for (const volume of volumes) {
+            if (volume.includes('Ebs')) {
                 volume_ids.append(volume['Ebs']['VolumeId'])
             }
             else {
@@ -286,8 +327,126 @@ export function check_ec2_ebs_type(instance_id) {
         }
         return volume_ids
     } catch (e) {
-        console.error('Failure describing instance $s', instance_id)
+        console.error('Failure describing instance %s', instance_id)
+    }
+}
+
+function check_instance_criteria(instance_id) {
+
+    var response;
+
+    var asg_response = autoscale.describeAutoScalingInstances({ InstanceIds: [instance_id] })
+
+    if (asg_response['AutoScalingInstances'] && asg_response['AutoScalingInstances'].length > 0) {
+        return response = 'Instance belongs to an AutoScalingGroup'
     }
 
+    var eip_response = ec2.describeAddresses({
+        Filters: [
+            {
+                'Name': 'EC2_Auto_Recovery',
+                'Values': [
+                    'Enabled'
+                ]
+            }
+        ]
+    })
 
+    if (eip_response['Addresses'] && eip_response['Addresses'].length > 0 && eip_response['Addresses'][0]['InstanceId'] == instance_id) {
+        console.info('Instance Has an EIP Attached')
+
+        var shutdown_behaviour_response = ec2.describeInstanceAttribute({
+            InstanceId: InstanceId,
+            Attribute: 'instanceInitiatedShutdownBehavior'
+        })
+
+        if (shutdown_behaviour_response['InstanceId'] == instance_id && shutdown_behaviour_response['InstanceInitiatedShutdownBehavior']['Value'] == 'stop') {
+            return response = 'Instance has InstanceInitiatedShutdownBehavior set to Terminate'
+        }
+        else {
+            console.info('InstanceInitiatedShutdownBehavior value is set to stop, proceed with stop start of instance')
+            response = stop_start_instance(instance_id);
+
+            return response;
+        }
+    }
+    else {
+        return response = 'Instance Does not have an EIP Attached'
+    }
+}
+
+function stop_start_instance(instance_id) {
+
+    var instance_successfully_stopped = false
+    var instance_successfully_running = false
+
+    console.info('Stopping Instance with ID: %s', instance_id)
+
+    ec2.stopInstances({ InstanceIds: instance_id })
+
+    while (instance_successfully_stopped == false) {
+        var stop_response = ec2.describe_instance_status({ InstanceIds: [instance_id] })
+
+        console.log(JSON.stringify(stop_response))
+
+        if (stop_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'stopped') {
+            instance_successfully_stopped = true
+        }
+        else {
+            console.info('Instance is still stopping, wait until stopped')
+        }
+    }
+
+    console.info('Starting Instance with ID: %s', instance_id)
+
+    ec2.startInstances({ InstanceIds: instance_id })
+
+    while (instance_successfully_running == false) {
+        var start_response = ec2.describe_instance_status({ InstanceIds: [instance_id] })
+
+        if (start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
+            start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
+            start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'passed') {
+            console.log('Instance is in a running state from stop/start, all checks passed')
+            instance_successfully_running = true
+            return 'Instance is in a running state from stop/start, all checks passed'
+        }
+        else if (start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
+            start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
+            start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'failed') {
+            return 'Instance has been stopped/started but has still failed an instance check'
+        }
+        else {
+            console.info('Instance is still starting, wait until running')
+        }
+    }
+}
+
+function send_to_datadog(event, instance_id, sns_topic_arn) {
+
+    var eventText = JSON.stringify(event + ', InstanceID: ' + instance_id, null, 2);
+
+    console.info("Received event:", eventText);
+
+    var params = {
+        Message: eventText,
+        Subject: "EC2 Recovery Lambda Response",
+        TopicArn: sns_topic_arn
+    };
+
+    console.info(params)
+
+    sns.publish(params);
+}
+
+module.exports = {
+    check_ec2_tag_exists_and_add_if_not,
+    determine_platform,
+    create_alarm,
+    create_cloudwatch_eventrule,
+    delete_alarm_if_instance_terminated,
+    reboot_ec2_instance,
+    check_ec2_ebs_type,
+    check_instance_criteria,
+    send_to_datadog,
 }

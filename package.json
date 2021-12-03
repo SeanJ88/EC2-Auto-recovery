@@ -3,19 +3,26 @@
     "serverless": "^2.66.2"
   },
   "devDependencies": {
+    "jest": "^27.4.2",
+    "json-schema": ">=0.4.0",
     "serverless-cloudformation-sub-variables": "^0.2.1",
     "serverless-iam-roles-per-function": "^3.2.0",
-    "serverless-plugin-lambda-dead-letter": "^1.2.1",
-    "json-schema": ">=0.4.0"
+    "serverless-plugin-lambda-dead-letter": "^1.2.1"
   },
-  "name": "aws-node-ec2-alarm-project",
-  "description": "<!-- title: 'AWS NodeJS Example' description: 'This template demonstrates how to deploy a NodeJS function running on AWS Lambda using the traditional Serverless Framework.' layout: Doc framework: v2 platform: AWS language: nodeJS priority: 1 authorLink: 'https://github.com/serverless' authorName: 'Serverless, inc.' authorAvatar: 'https://avatars1.githubusercontent.com/u/13742415?s=200&v=4' -->",
+  "name": "ec2-auto-subscribe-recovery-lambda-project",
+  "description": "<!-- title: 'AWS NodeJS EC2 Auto Subscribe Alarm And Recovery Lambda' description: 'This template demonstrates how to deploy two NodeJS functions running on AWS Lambda using the traditional Serverless Framework. The First Lambda will Subscribe Each EC2 Instance matching a criteria and Auto Create Cloudwatch Recovery Alarms for System Status and Instance Status Failures. The Second Lambda is a Recovery Lambda which will respond to a SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific critera. The Second Lambda will then send to an SNS Topic with the Results.' layout: Doc framework: v2 platform: AWS language: nodeJS priority: 1 authorLink: 'https://github.com/SeanJ88' authorName: 'Sean Jones.' companyName: 'DevOpsGroup' -->",
   "version": "1.0.0",
   "main": "handler.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
+  },
+  "jest": {
+    "setupFiles": [
+      "<rootDir>/jest/setEnvVars.js"
+    ]
   },
   "keywords": [],
-  "author": "",
+  "author": "Sean Jones",
+  "Company": "DevOpsGroup",
   "license": "ISC"
 }
