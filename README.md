@@ -189,11 +189,11 @@ by AWS CloudWatch and SNS Topic Triggers.
 If you want to update this Repository then you can find everything
 you require in the following folders:
 
-- Lambda Functions     - [Functions]()
-- Library for Lambdas  - [libs]()
-- Serverless Resources - [Serverless.yml]()
-- JEST Tests           - [`__`tests`__`]()
-- JEST Mock Function   - [jest]()
+- Lambda Functions     - [Functions](https://github.com/SeanJ88/EC2-Auto-recovery/tree/main/functions)
+- Library for Lambdas  - [libs](https://github.com/SeanJ88/EC2-Auto-recovery/tree/main/functions/libs)
+- Serverless Resources - [Serverless.yml](https://github.com/SeanJ88/EC2-Auto-recovery/blob/main/serverless.yml)
+- JEST Tests           - [`__`tests`__`](https://github.com/SeanJ88/EC2-Auto-recovery/tree/main/__tests__)
+- JEST Mock Function   - [jest](https://github.com/SeanJ88/EC2-Auto-recovery/tree/main/jest)
 
 #### Testing (JEST)
 
