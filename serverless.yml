@@ -101,13 +101,13 @@ resources:
                 Service:
                   - cloudwatch.amazonaws.com
               Action:
-                - sns:Publish     
+                - sts:AssumeRole     
             - Effect: Allow
               Principal:
                 Service:
                   - events.amazonaws.com
               Action:
-                - lambda:InvokeFunction              
+                - sts:AssumeRole              
         ManagedPolicyArns:
           - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
         Policies:
