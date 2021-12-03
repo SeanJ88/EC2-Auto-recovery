@@ -21,7 +21,7 @@ The Second Lambda is a Recovery Lambda which will respond to an SNS Topic Trigge
 The Second Lambda will then send to an SNS Topic with the Results.
 
 
-## Infrastructure:
+## Infrastructure
 
 In this repository we are deploying the following:
 
@@ -38,6 +38,8 @@ In this repository we are deploying the following:
 
 This is all created in the [Serverless.yml](https://github.com/SeanJ88/EC2-Auto-recovery/blob/main/serverless.yml) file
 
+
+### Infrastructure Diagram
 ### Infrastructure Cost
 
 #### Lambda Function Pricing

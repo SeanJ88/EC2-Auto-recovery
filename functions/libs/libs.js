@@ -75,7 +75,7 @@ async function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
 
 async function determine_platform(imageid) {
     try {
-        var image_info = await ec2.describeImages(ImageIds = [imageid]).promise();
+        var image_info = await ec2.describeImages({ImageIds: [imageid]}).promise();
 
         if (image_info['Images'] && image_info['Images'].length > 0) {
             var platform_details = image_info['Images'][0]['PlatformDetails']
@@ -280,7 +280,7 @@ async function reboot_ec2_instance(instance_id) {
 
     await ec2.rebootInstances({ InstanceIds: [instance_id] }).promise();
 
-    while (instance_successfully_restarted == false || instance_reachability_failued == false) {
+    while (instance_successfully_restarted == false || instance_reachability_failed == false) {
         var response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
 
         if (response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
@@ -442,7 +442,7 @@ async function send_to_datadog(event, instance_id, sns_topic_arn) {
 
     console.info(params)
 
-    await sns.publish(params).promise();;
+    await sns.publish(params).promise();
 }
 
 module.exports = {
