@@ -33,7 +33,6 @@ module.exports.subscriber = async (event, context) => {
     }
     else if ('source' in event && event['source'] == 'aws.ec2' && event['detail']['state'] == 'terminated') {
       var instance_id = event['detail']['instance-id']
-      var result = await functions.delete_alarm_if_instance_terminated(instance_id)
       if (result) {
         return console.log('Alarm has been deleted %s', result)
       }

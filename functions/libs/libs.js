@@ -29,6 +29,8 @@ async function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
            };
 
         const describeInstances = await ec2.describeInstances(instance).promise();
+        
+        console.log(JSON.stringify(describeInstances))
 
         if (describeInstances['Reservations'] && describeInstances['Reservations'].length > 0 &&
         describeInstances['Reservations'][0]['Instances'].length > 0) {
@@ -60,7 +62,7 @@ async function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
             if (describeInstances['Reservations'] && describeInstances['Reservations'].length > 0 &&
             describeInstances['Reservations'][0]['Instances'].length > 0) {
                 console.info('Tag EC2_Auto_Recovery Does not Exist, Creating Tag')
-                await ec2.createTags(params).promise()
+                await ec2.createTags(params).promise();
                 return describeInstances['Reservations'][0]['Instances'][0]
             }
             else {
@@ -75,12 +77,12 @@ async function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
 
 async function determine_platform(imageid) {
     try {
-        var image_info = await ec2.describeImages({ImageIds: [imageid]}).promise();
+        const image_info = await ec2.describeImages({ImageIds: [imageid]}).promise();
 
         if (image_info['Images'] && image_info['Images'].length > 0) {
             var platform_details = image_info['Images'][0]['PlatformDetails']
 
-            console.debug('Platform details of image: %s', platform_details)
+            console.info('Platform details of image: %s', platform_details)
 
             if (platform_details.includes('Windows') || platform_details.includes('SQL Server')) {
                 return 'Windows'
@@ -92,8 +94,8 @@ async function determine_platform(imageid) {
                 return 'SUSE'
             }
             if (platform_details.includes('Linux/UNIX')) {
-                if (image_info['Images'][0]['Description'].lower().includes('ubuntu') || image_info['Images'][0][
-                    'Name'].lower().includes('ubuntu')) {
+                if (image_info['Images'][0]['Description'].toLowerCase().includes('ubuntu') || image_info['Images'][0][
+                    'Name'].toLowerCase().includes('ubuntu')) {
                     return 'Ubuntu'
                 }
                 else {
@@ -118,28 +120,7 @@ async function determine_platform(imageid) {
 // Example:  AutoAlarm-i-00e4f327736cb077f-RedHat-StatusCheckFailed_System-eu-west-2
 async function create_alarm(instance_id, platform, sns_topic_arn, region) {
 
-    for (const alarm of alarms) {
-
-        var params = {
-            Tags: [
-                {
-                    Key: 'InstanceID',
-                    Value: instance_id
-                },
-                {
-                    Key: 'AlarmType',
-                    Value: alarm
-                },
-                {
-                    Key: 'Platform',
-                    Value: platform
-                },
-                {
-                    Key: 'Company',
-                    Value: 'DevOpsGroup'
-                },
-            ]
-        };
+    for (var alarm of alarms) {
 
         var alarmName = `ÀutoAlarm-${instance_id}-${platform}-${alarm}-${region}`
 
@@ -149,18 +130,37 @@ async function create_alarm(instance_id, platform, sns_topic_arn, region) {
             var alarmProperties = {
                 'AlarmName': alarmName,
                 'AlarmDescription': alarmDescription,
-                'AlarmActions': [`arn:aws:automate:${region}:ec2:recover`, `${sns_topic_arn}`],
+                'AlarmActions': [`arn:aws:automate:${region}:ec2:recover`, sns_topic_arn],
                 'MetricName': alarm,
                 'Namespace': 'AWS/EC2',
-                'Dimensions': ['Name=InstanceId', `Value=${instance_id}`],
+                'Dimensions': [{ 'Name': 'InstanceId', 'Value': instance_id}],
                 'Period': 300,
                 'DatapointsToAlarm': 2,
                 'EvaluationPeriods': 2,
                 'Threshold': 1,
                 'ComparisonOperator': 'GreaterThanOrEqualToThreshold',
                 'Statistic': 'Maximum',
-                'Tags': params
+                'Tags': [
+                    {
+                        Key: 'InstanceID',
+                        Value: instance_id
+                    },
+                    {
+                        Key: 'AlarmType',
+                        Value: alarm
+                    },
+                    {
+                        Key: 'Platform',
+                        Value: platform
+                    },
+                    {
+                        Key: 'Company',
+                        Value: 'DevOpsGroup'
+                    } 
+                ]
             }
+
+            console.debug(alarm)
 
             if (alarm === 'StatusCheckFailed_Instance') {
                 alarmProperties['AlarmActions'] = [sns_topic_arn]
@@ -171,79 +171,28 @@ async function create_alarm(instance_id, platform, sns_topic_arn, region) {
             await cw_client.putMetricAlarm(alarmProperties).promise();
 
             console.info('Created alarm %s', alarmName)
-
-            var eventrule = await create_cloudwatch_eventrule(sns_topic_arn)
-
-            return alarmName + ' ' + JSON.stringify(eventrule)
         }
 
         catch (e) {
             console.error('Error creating alarm %s!: %s', alarmName, e)
         }
-
     }
+    return alarmName + ' ' + JSON.stringify(eventrule)
 }
 
-async function create_cloudwatch_eventrule(sns_topic_arn) {
-
-    try {
-        var cloudwatchRule =
-        {
-            Name: 'EC2-Recovery-status-trigger',
-            Description: 'Event Rule to Trigger if EC2 Recovery is a Success or Failure',
-            EventPattern:
-            {
-                'detail': {
-                    'eventTypeCategory': [
-                        'issue'
-                    ],
-                    'service': [
-                        'EC2'
-                    ],
-                    'eventTypeCodes': [
-                        'AWS_EC2_INSTANCE_AUTO_RECOVERY_FAILURE',
-                        'AWS_EC2_INSTANCE_AUTO_RECOVERY_SUCCESS'
-                    ]
-                },
-                'detail-type': [
-                    'AWS Health Event'
-                ],
-                'source': [
-                    'aws.health'
-                ]
-            }
-        }
-
-        await cloudwatchevents.putRule(cloudwatchRule).promise();
-
-        var target =
-        {
-            Rule: cloudwatchRule,
-            Targets: [{
-                Id: 'DataDogSNSTopic',
-                Arn: sns_topic_arn
-            }]
-        }
-        await cloudwatchevents.putTargets(target).promise();
-        return target
-    } catch (e) {
-        console.error('Error creating event rule or adding target %s, error code: %s', cloudwatchRule, e)
-    }
-}
-
-async function delete_alarm_if_instance_terminated(instance_id) {
+function delete_alarm_if_instance_terminated(instance_id) {
     try {
         var alarmNamePrefix = `AutoAlarm-${instance_id}`;
         console.info('Call describe cloudwatch alarms to get alarms with prefix %s', alarmNamePrefix)
-        const response = await cw_client.describeAlarms(AlarmNamePrefix = alarmNamePrefix).promise();
+        const response = cw_client.describeAlarms(AlarmNamePrefix = alarmNamePrefix)
         var alarm_list = []
         if (response['MetricAlarms']) {
             for (alarm in response['MetricAlarms']) {
                 var alarm_name = alarm['AlarmName']
                 alarm_list.append(alarm_name)
             }
-            await cw_client.deleteAlarms({AlarmNames = alarm_list}).promise();
-            return alarm_list
+            cw_client.deleteAlarms(AlarmNames = alarm_list)
+            return AlarmNames
         }
         console.info('No MetricAlarms in response given')
         return false
@@ -252,13 +201,13 @@ async function delete_alarm_if_instance_terminated(instance_id) {
     }
 }
 
-async function reboot_ec2_instance(instance_id) {
+function reboot_ec2_instance(instance_id) {
 
     var instance_successfully_restarted = false;
     var instance_reachability_failed = false;
     var reboot_count = 0;
 
-    instance = await ec2.describeInstances({
+    instance = ec2.describeInstances({
         Filters: [
             {
                 'Name': 'tag:EC2_Auto_Recovery',
@@ -270,7 +219,7 @@ async function reboot_ec2_instance(instance_id) {
         InstanceIds: [
             instance_id
         ]
-    }).promise();
+    })
 
     if (instance['Reservations'] && instance['Reservations'].length > 0 &&
         instance['Reservations'][0]['Instances'].length > 0) {
@@ -278,15 +227,15 @@ async function reboot_ec2_instance(instance_id) {
         return None;
     }
 
-    await ec2.rebootInstances({ InstanceIds: [instance_id] }).promise();
+    ec2.rebootInstances({ InstanceIds: [instance_id] })
 
-    while (instance_successfully_restarted == false || instance_reachability_failed == false) {
-        var response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
+    while (instance_successfully_restarted == false || instance_reachability_failued == false) {
+        var response = ec2.describeInstanceStatus({ InstanceIds: [instance_id] })
 
         if (response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
             response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'failed') {
             console.info('Instance is still in a failed state, reboot instance again')
-            await ec2.rebootInstances({ InstanceIds: [instance_id] }).promise();
+            ec2.rebootInstances({ InstanceIds: [instance_id] })
             reboot_count = reboot_count + 1
             console.info(reboot_count)
             if (reboot_count == 5) {
@@ -305,12 +254,12 @@ async function reboot_ec2_instance(instance_id) {
     }
 }
 
-async function check_ec2_ebs_type(instance_id) {
+function check_ec2_ebs_type(instance_id) {
 
     var volume_ids = []
 
     try {
-        var instance = await ec2.describeInstances({ InstanceIds: [instance_id] }).promise();
+        var instance = ec2.describeInstances({ InstanceIds: [instance_id] })
 
         if (instance['Reservations'] && instance['Reservations'].length > 0 &&
             instance['Reservations'][0]['Instances'].length > 0) {
@@ -337,17 +286,17 @@ async function check_ec2_ebs_type(instance_id) {
     }
 }
 
-async function check_instance_criteria(instance_id) {
+function check_instance_criteria(instance_id) {
 
     var response;
 
-    var asg_response = await autoscale.describeAutoScalingInstances({ InstanceIds: [instance_id] }).promise();
+    var asg_response = autoscale.describeAutoScalingInstances({ InstanceIds: [instance_id] })
 
     if (asg_response['AutoScalingInstances'] && asg_response['AutoScalingInstances'].length > 0) {
         return response = 'Instance belongs to an AutoScalingGroup'
     }
 
-    var eip_response = await ec2.describeAddresses({
+    var eip_response = ec2.describeAddresses({
         Filters: [
             {
                 'Name': 'tag:EC2_Auto_Recovery',
@@ -356,22 +305,22 @@ async function check_instance_criteria(instance_id) {
                 ]
             }
         ]
-    }).promise();
+    })
 
     if (eip_response['Addresses'] && eip_response['Addresses'].length > 0 && eip_response['Addresses'][0]['InstanceId'] == instance_id) {
         console.info('Instance Has an EIP Attached')
 
-        var shutdown_behaviour_response = await ec2.describeInstanceAttribute({
+        var shutdown_behaviour_response = ec2.describeInstanceAttribute({
             InstanceId: InstanceId,
             Attribute: 'instanceInitiatedShutdownBehavior'
-        }).promise();
+        })
 
         if (shutdown_behaviour_response['InstanceId'] == instance_id && shutdown_behaviour_response['InstanceInitiatedShutdownBehavior']['Value'] == 'stop') {
             return response = 'Instance has InstanceInitiatedShutdownBehavior set to Terminate'
         }
         else {
             console.info('InstanceInitiatedShutdownBehavior value is set to stop, proceed with stop start of instance')
-            response = await stop_start_instance(instance_id);
+            response = stop_start_instance(instance_id);
 
             return response;
         }
@@ -381,17 +330,17 @@ async function check_instance_criteria(instance_id) {
     }
 }
 
-async function stop_start_instance(instance_id) {
+function stop_start_instance(instance_id) {
 
     var instance_successfully_stopped = false
     var instance_successfully_running = false
 
     console.info('Stopping Instance with ID: %s', instance_id)
 
-    await ec2.stopInstances({ InstanceIds: instance_id }).promise();
+    ec2.stopInstances({ InstanceIds: instance_id })
 
     while (instance_successfully_stopped == false) {
-        var stop_response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
+        var stop_response = ec2.describeInstanceStatus({ InstanceIds: [instance_id] })
 
         console.log(JSON.stringify(stop_response))
 
@@ -405,10 +354,10 @@ async function stop_start_instance(instance_id) {
 
     console.info('Starting Instance with ID: %s', instance_id)
 
-    await ec2.startInstances({ InstanceIds: instance_id }).promise();
+    ec2.startInstances({ InstanceIds: instance_id })
 
     while (instance_successfully_running == false) {
-        var start_response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
+        var start_response = ec2.describeInstanceStatus({ InstanceIds: [instance_id] })
 
         if (start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
             start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
@@ -428,7 +377,7 @@ async function stop_start_instance(instance_id) {
     }
 }
 
-async function send_to_datadog(event, instance_id, sns_topic_arn) {
+function send_to_datadog(event, instance_id, sns_topic_arn) {
 
     var eventText = JSON.stringify(event + ', InstanceID: ' + instance_id, null, 2);
 
@@ -442,7 +391,7 @@ async function send_to_datadog(event, instance_id, sns_topic_arn) {
 
     console.info(params)
 
-    await sns.publish(params).promise();
+    sns.publish(params);
 }
 
 module.exports = {

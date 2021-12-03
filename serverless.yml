@@ -143,11 +143,17 @@ resources:
                     - cloudwatch:DescribeAlarms
                     - cloudwatch:DeleteAlarms
                     - cloudwatch:PutMetricAlarm
-                  Resource: 'arn:aws:cloudwatch:${aws:region}:${aws:accountId}:alarm:AutoAlarm-*'
+                  Resource: 'arn:aws:cloudwatch:${aws:region}:${aws:accountId}:alarm:*'
                 - Effect: Allow
                   Action:
                     - cloudwatch:PutMetricData
                   Resource: '*'
+                - Effect: Allow
+                  Action:
+                    - events:PutRule
+                    - events:DeleteRule
+                    - events:ListRules
+                  Resource: 'arn:aws:events:${aws:region}:${aws:accountId}:rule:*'
                 - Effect: Allow
                   Action:
                     - ec2:CreateTags
@@ -175,6 +181,54 @@ resources:
         Endpoint: event-1i8bqltl@dtdg.co
         Protocol: email-json
         TopicArn: !Ref EC2DatadogSnsTopic
+    EC2RecoveryCloudWatchRule:
+      Type: AWS::Events::Rule
+      Properties: 
+        Name: EC2-Recovery-status-trigger
+        Description: 'Event Rule to Trigger if EC2 Recovery is a Success or Failure'
+        EventPattern: 
+          source:
+            - 'aws.health'
+          detail-type: 
+            - 'AWS Health Event'
+          detail: 
+            eventTypeCategory: 
+              - 'Issue'
+            service:
+              - 'EC2'
+            eventTypeCodes:
+              - AWS_EC2_INSTANCE_AUTO_RECOVERY_FAILURE
+              - AWS_EC2_INSTANCE_AUTO_RECOVERY_SUCCESS
+        State: "ENABLED"
+        Targets: 
+          - 
+            Arn: 
+              Ref: EC2DatadogSnsTopic
+            Id: 'DataDogSNSTopic'
+    EventTopicPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: 'sns:Publish'
+              Resource: '*'
+        Topics:
+          - !Ref EC2DatadogSnsTopic
+    CloudWatchTopicPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: cloudwatch.amazonaws.com
+              Action: 'sns:Publish'
+              Resource: '*'
+        Topics:
+          - !Ref EC2DatadogSnsTopic
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # EC2SubscriberDLQ:
     #   Type: AWS::SQS::Queue

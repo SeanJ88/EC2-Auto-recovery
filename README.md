@@ -28,6 +28,7 @@ In this repository we are deploying the following:
 ```
 - 2 x Lambdas
 - 1 x SNS Topic
+- 2 x SNS Topic Policies (1 x events, 1 x cloudwatch)
 - 1 x IAM Role
 - 1 x IAM Policy
 - 2 x SQS Dead Letter Queues 
