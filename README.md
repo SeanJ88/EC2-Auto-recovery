@@ -14,9 +14,9 @@ companyName: 'DevOpsGroup'
 
 This template demonstrates how to deploy two NodeJS functions running on AWS Lambda using the traditional Serverless Framework. 
 
-The First Lambda will Subscribe Each EC2 Instance matching a criteria and Auto Create Cloudwatch Recovery Alarms for System Status and Instance Status Failures. 
+The First Lambda will Subscribe Each EC2 Instance matching a criterion and Auto Create CloudWatch Recovery Alarms for System Status and Instance Status Failures. 
 
-The Second Lambda is a Recovery Lambda which will respond to a SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific critera. 
+The Second Lambda is a Recovery Lambda which will respond to an SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific criteria. 
 
 The Second Lambda will then send to an SNS Topic with the Results.
 
@@ -68,7 +68,7 @@ London (Eu-west-2) Pricing
 ```
 #### Example Cost
 
-We wll go over an example for cost for a 1 Month Period.
+We will go over an example for cost for a 1-Month Period.
 
 ##### Scenario
 
@@ -78,15 +78,15 @@ spun up/terminated throughout the month period.
 There is also a 20% failure on these machines per week 
 which will trigger the resolve Lambda.
 
-On average lets say the Lambda invocations will last 3 mintues.
+On average lets say the Lambda invocations will last 3 minutes.
 
 
 Subscriber Lambda Invocation Cost: 
 ```
-  - 90 innvocations for tagging current Instances
-  - 40% running/terminate instances = 90 * 0.40 = 36 innvocations
-  - Total Subscriber Innovations = 126 innvocations
-  - Innvocation Cost = $0.20 per 1M Requests = 126/1000000 = $0.20
+  - 90 invocations for tagging current Instances
+  - 40% running/terminate instances = 90 * 0.40 = 36 invocations
+  - Total Subscriber Innovations = 126 invocations
+  - Invocation Cost = $0.20 per 1M Requests = 126/1000000 = $0.20
   - Duration - 3 minutes(180000) x $0.0000000083 = 0.001494 x 126 = $0.19
 
   Total Cost: $0.39 per month
@@ -104,7 +104,7 @@ Resolver Lambda Invocation Cost:
 ```
   - 90 instances
   - 20% per week of failures = 90 x 0.20 x 4 = 72 invocations
-  - Innvocation Cost = $0.20 per 1M Requests = 72/1000000 = $0.20
+  - Invocation Cost = $0.20 per 1M Requests = 72/1000000 = $0.20
   - Duration - 3 minutes(180000) x $0.0000000083 = 0.001494 x 126 = $0.19
   
   Total Cost: $0.39 per month
@@ -128,12 +128,12 @@ SNS Topic Cost
 Additional Charges
 ```
 As the Resolver Lambda is Triggered by the SNS topic.
-Any events going to the SNS topic will trigger the Lambd
+Any events going to the SNS topic will trigger the Lambda
 Even if the Lambda will disregard those events.
 
 So from the SNS Example. 
  - 360 Emails sent - 360 additional Resolver Lambda Notifications
- - Innvocation total = 360 + 72 previous triggers = 432 Innvocations
+ - Invocation total = 360 + 72 previous triggers = 432 Invocations
 
 Total Cost: $0.00 ($0.20 per 1M requests already paid by Lambda Cost)
 ```
@@ -213,7 +213,7 @@ place of the AWS Commands.
 Each Function in Lib.js will have example JSON responses which can 
 be amended to test each functionality of the Lambda Functions.
 
-Currently the JSON data will have information to test the Lambda
+Currently, the JSON data will have information to test the Lambda
 Functions to have the correct criteria for the Subscriber Lambda and
 the correct Criteria to fully test the Resolver Lambda.
 
@@ -222,7 +222,7 @@ step by step to test each edge case.
 
 ### Suggested Improvements
 
-Currenly the Two Lambda Functions are written in NodeJS and are 
+Currently, the Two Lambda Functions are written in NodeJS and are 
 currently are await functions.
 
 All logic for the Lambdas are contained in the lib.js file.
@@ -238,4 +238,4 @@ lib.js to allow for async await and promise.
 This will make the Lambdas more functional.
 
 Potentially update JEST Tests to use AWS Mock to mock the AWS
-API Calls to test the Logic more effciently without using example Data.
+API Calls to test the Logic more efficiently without using example Data.
