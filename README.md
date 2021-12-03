@@ -171,7 +171,7 @@ Total Per Month - $9.84
 In order to deploy the example, you need to run the following command:
 
 ```
-$ serverless deploy --stage [stage] --profile [sandbox]
+$ serverless deploy --stage stage --profile profile
 ```
 
 - Stage should be the environment you want to deploy e.g dev/test/int/prod
