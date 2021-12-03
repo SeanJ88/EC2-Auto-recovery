@@ -11,7 +11,7 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
     var params = { Resources: [instance_id], Tags: tags }
 
     try {
-        instance = ec2.describe_instances({
+        instance = ec2.describeInstances({
             Filters: [
                 {
                     'Name': 'EC2_Auto_Recovery',
@@ -32,7 +32,7 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
 
         } else {
 
-            instance = ec2.describe_instances({
+            instance = ec2.describeInstances({
                 Filters: [
                     {
                         'Name': 'dd-monitoring',
@@ -54,7 +54,7 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
             if ('Reservations' in instance && instance['Reservations'].length > 0 &&
                 instance['Reservations'][0]['Instances'].length > 0) {
                 console.info('Tag EC2_Auto_Recovery Does not Exist, Creating Tag')
-                ec2.create_tags(params)
+                ec2.createTags(params)
                 return instance['Reservations'][0]['Instances'][0]
             }
             else {
@@ -69,7 +69,7 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
 
 function determine_platform(imageid) {
     try {
-        var image_info = ec2.describe_images(ImageIds = [imageid])
+        var image_info = ec2.describeImages(ImageIds = [imageid])
 
         if (image_info['Images'] && image_info['Images'].length > 0) {
             var platform_details = image_info['Images'][0]['PlatformDetails']
@@ -162,7 +162,7 @@ function create_alarm(instance_id, platform, sns_topic_arn, region) {
                 alarmProperties['EvaluationPeriods'] = 3
             }
 
-            cw_client.put_metric_alarm(alarmProperties)
+            cw_client.putMetricAlarm(alarmProperties)
 
             console.info('Created alarm %s', alarmName)
 
@@ -236,7 +236,7 @@ function delete_alarm_if_instance_terminated(instance_id) {
                 var alarm_name = alarm['AlarmName']
                 alarm_list.append(alarm_name)
             }
-            cw_client.delete_alarms(AlarmNames = alarm_list)
+            cw_client.deleteAlarms(AlarmNames = alarm_list)
             return AlarmNames
         }
         console.info('No MetricAlarms in response given')
@@ -252,7 +252,7 @@ function reboot_ec2_instance(instance_id) {
     var instance_reachability_failed = false;
     var reboot_count = 0;
 
-    instance = ec2.describe_instances({
+    instance = ec2.describeInstances({
         Filters: [
             {
                 'Name': 'EC2_Auto_Recovery',
@@ -272,15 +272,15 @@ function reboot_ec2_instance(instance_id) {
         return None;
     }
 
-    ec2.reboot_instances({ InstanceIds: [instance_id] })
+    ec2.rebootInstances({ InstanceIds: [instance_id] })
 
     while (instance_successfully_restarted == false || instance_reachability_failued == false) {
-        var response = ec2.describe_instance_status({ InstanceIds: [instance_id] })
+        var response = ec2.describeInstanceStatus({ InstanceIds: [instance_id] })
 
         if (response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
             response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'failed') {
             console.info('Instance is still in a failed state, reboot instance again')
-            ec2.reboot_instances({ InstanceIds: [instance_id] })
+            ec2.rebootInstances({ InstanceIds: [instance_id] })
             reboot_count = reboot_count + 1
             console.info(reboot_count)
             if (reboot_count == 5) {
@@ -304,7 +304,7 @@ function check_ec2_ebs_type(instance_id) {
     var volume_ids = []
 
     try {
-        var instance = ec2.describe_instances({ InstanceIds: [instance_id] })
+        var instance = ec2.describeInstances({ InstanceIds: [instance_id] })
 
         if (instance['Reservations'] && instance['Reservations'].length > 0 &&
             instance['Reservations'][0]['Instances'].length > 0) {
@@ -385,7 +385,7 @@ function stop_start_instance(instance_id) {
     ec2.stopInstances({ InstanceIds: instance_id })
 
     while (instance_successfully_stopped == false) {
-        var stop_response = ec2.describe_instance_status({ InstanceIds: [instance_id] })
+        var stop_response = ec2.describeInstanceStatus({ InstanceIds: [instance_id] })
 
         console.log(JSON.stringify(stop_response))
 
@@ -402,7 +402,7 @@ function stop_start_instance(instance_id) {
     ec2.startInstances({ InstanceIds: instance_id })
 
     while (instance_successfully_running == false) {
-        var start_response = ec2.describe_instance_status({ InstanceIds: [instance_id] })
+        var start_response = ec2.describeInstanceStatus({ InstanceIds: [instance_id] })
 
         if (start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
             start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
