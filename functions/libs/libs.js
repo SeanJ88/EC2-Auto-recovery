@@ -398,7 +398,6 @@ module.exports = {
     check_ec2_tag_exists_and_add_if_not,
     determine_platform,
     create_alarm,
-    create_cloudwatch_eventrule,
     delete_alarm_if_instance_terminated,
     reboot_ec2_instance,
     check_ec2_ebs_type,
