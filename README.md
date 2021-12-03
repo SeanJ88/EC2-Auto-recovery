@@ -171,68 +171,71 @@ Total Per Month - $9.84
 In order to deploy the example, you need to run the following command:
 
 ```
-$ serverless deploy --stage dev/int/prod
+$ serverless deploy --stage [stage] --profile [sandbox]
 ```
 
-After running deploy, you should see output similar to:
+- Stage should be the environment you want to deploy e.g dev/test/int/prod
+- Profile should be the Account you want to deploy to listed in your AWS Credentials File.
 
-```bash
-Serverless: Packaging service...
-Serverless: Excluding development dependencies...
-Serverless: Creating Stack...
-Serverless: Checking Stack create progress...
-........
-Serverless: Stack create finished...
-Serverless: Uploading CloudFormation file to S3...
-Serverless: Uploading artifacts...
-Serverless: Uploading service aws-node.zip file to S3 (711.23 KB)...
-Serverless: Validating template...
-Serverless: Updating Stack...
-Serverless: Checking Stack update progress...
-.................................
-Serverless: Stack update finished...
-Service Information
-service: aws-node
-stage: dev
-region: us-east-1
-stack: aws-node-dev
-resources: 6
-functions:
-  api: aws-node-dev-hello
-layers:
-  None
-```
-
+This deployment should only be deployed once per Account.
+I'd recommend if you have an Int account and Dev account in the same account. Then deploy the Lambda with the stage int
 ### Invocation
 
-After successful deployment, you can invoke the deployed function by using the following command:
-
-```bash
-serverless invoke --function hello
-```
-
-Which should result in response similar to the following:
-
-```json
-{
-    "statusCode": 200,
-    "body": "{\n  \"message\": \"Go Serverless v2.0! Your function executed successfully!\",\n  \"input\": {}\n}"
-}
-```
+After successful deployment, Invocation will be done automatically 
+by AWS CloudWatch and SNS Topic Triggers.
 
 ### Local development
 
-You can invoke your function locally by using the following command:
+If you want to update this Repository then you can find everything
+you require in the following folders:
 
-```bash
-serverless invoke local --function hello
-```
+- Lambda Functions     - [Functions]()
+- Library for Lambdas  - [libs]()
+- Serverless Resources - [Serverless.yml]()
+- JEST Tests           - [`__`tests`__`]()
+- JEST Mock Function   - [jest]()
 
-Which should result in response similar to the following:
+#### Testing (JEST)
 
-```
-{
-    "statusCode": 200,
-    "body": "{\n  \"message\": \"Go Serverless v2.0! Your function executed successfully!\",\n  \"input\": \"\"\n}"
-}
-```
+JEST is used to test the Lambda functions and the Library to make
+sure functionality is working as expected.
+
+These can be found in the JEST Tests folder listed above.
+
+There is a MOCK lambda function and Library location in the JEST
+folder. Which contains the same logic as the Live Lambda Functions
+However, these files do not contain the AWS SDK calls as these 
+cannot be tested without assuming a role and having access with the AWS CLI.
+
+So for these files, example JSON responses have been put in 
+place of the AWS Commands. 
+
+Each Function in Lib.js will have example JSON responses which can 
+be amended to test each functionality of the Lambda Functions.
+
+Currently the JSON data will have information to test the Lambda
+Functions to have the correct criteria for the Subscriber Lambda and
+the correct Criteria to fully test the Resolver Lambda.
+
+Local testing has been done to test each function and each logic
+step by step to test each edge case.
+
+### Suggested Improvements
+
+Currenly the Two Lambda Functions are written in NodeJS and are 
+currently are await functions.
+
+All logic for the Lambdas are contained in the lib.js file.
+
+This file contains all the functions the Lambdas call to complete 
+their functionality.
+
+These functions are currently not await/promise functions.
+
+To improve this repo, it might be worth changing the functions in 
+lib.js to allow for async await and promise.
+
+This will make the Lambdas more functional.
+
+Potentially update JEST Tests to use AWS Mock to mock the AWS
+API Calls to test the Logic more effciently without using example Data.
