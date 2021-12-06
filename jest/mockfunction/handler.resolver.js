@@ -55,14 +55,14 @@ module.exports.resolver = async (event, context) => {
                 functions.send_to_datadog(ec2_check_response, instance_id, sns_topic_arn)
             }
             else {
-                console.info('No EBS volume can be found, Instance must be an Instance Store or an unkown Volume Type')
-                functions.send_to_datadog('No EBS volume can be found, Instance must be an Instance Store or an unkown Volume Type', instance_id)
+                console.info('No EBS volume can be found, Instance must be an Instance Store or an unknown Volume Type')
+                functions.send_to_datadog('No EBS volume can be found, Instance must be an Instance Store or an unknown Volume Type', instance_id)
             }
         }
         else {
-           return console.info('SNS Message recieved does not contain StatusCheckFailed_Instance, an instance_id or does not contain any BlockDeviceMappings')
+           return console.info('SNS Message received does not contain StatusCheckFailed_Instance, an instance_id or does not contain any BlockDeviceMappings')
         }
     } catch (e) {
-        return console.error('Failure to reboot/recovering instance: $s',instance_id, e);
+        return console.error('Failure to reboot/recovering instance: %s',instance_id, e);
     }
 }

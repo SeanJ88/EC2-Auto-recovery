@@ -65,6 +65,6 @@ module.exports.resolver = async (event, context) => {
            return console.info('SNS Message received does not contain StatusCheckFailed_Instance')
         }
     } catch (e) {
-        return console.error('Failure to reboot/recovering instance: $s',instance_id, e);
+        return console.error('Failure to reboot/recovering instance: %s',instance_id, e);
     }
 }
