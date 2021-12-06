@@ -16,7 +16,7 @@ This template demonstrates how to deploy two NodeJS functions running on AWS Lam
 
 The First Lambda will Subscribe Each EC2 Instance matching a criterion and Auto Create CloudWatch Recovery Alarms for System Status and Instance Status Failures. 
 
-The Second Lambda is a Recovery Lambda which will respond to an SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific criteria. 
+The Second Lambda is a Recovery Lambda which will respond to an SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific criterion. 
 
 The Second Lambda will then send to an SNS Topic with the Results.
 
@@ -41,6 +41,9 @@ This is all created in the [Serverless.yml](https://github.com/SeanJ88/EC2-Auto-
 
 
 ### Infrastructure Diagram
+
+![](images/EC2_Recovery.jpeg)
+
 ### Infrastructure Cost
 
 #### Lambda Function Pricing
@@ -169,16 +172,37 @@ Total Per Month - $9.84
 ```
 ## Usage
 
+:warning: This Tool will only Automatically Subscribe, Tag, Create and Recover newly running instances that have the following tags: :warning:
+
+- dd-monitoring - true
+- dd-mute - false
+
+If the above is set to any different, then the Lambda will not subscribe and auto add tags/alarms to the instance.
+
+The functionality of the Lambda also only listens to newly 'running' or 'terminated' instances.
+
+The Lambda will not auto tag Instances that are currently in a running state before the Lambda deployment.
+
+If you want current instances to have auto recovery enabled then these instances must first be stopped and then put back into a running state for the Lambda to trigger.
+### Prerequisites
+
+- Serverless Framework Installed - v2.x.x or higher
+- node installed - v14.x.x or higher
+- npm installed - v8.x.x or higher
+
 ### Deployment
 
 In order to deploy the example, you need to run the following command:
 
 ```
-$ serverless deploy --stage stage --profile profile
+export AWS_PROFILE=profile
+serverless deploy --stage stage
 ```
 
-- Stage should be the environment you want to deploy e.g dev/test/int/prod
 - Profile should be the Account you want to deploy to listed in your AWS Credentials File.
+- Stage should be the environment you want to deploy e.g dev/test/int/prod
+- :warning: If you do not have profiles set up then please assume the role for the account you want to deploy to and run the serverless deploy command :warning:
+
 
 This deployment should only be deployed once per Account.
 I'd recommend if you have an Int account and Dev account in the same account. Then deploy the Lambda with the stage int

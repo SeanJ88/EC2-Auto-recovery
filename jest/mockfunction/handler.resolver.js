@@ -19,7 +19,11 @@ module.exports.resolver = async (event, context) => {
 
         if (alert_message['AlarmName'].includes('StatusCheckFailed_Instance')) {
 
-            var instance_id = alert_message['Tags'][0]['InstanceID']
+            var alarm_name = alert_message['AlarmName'].split(",").toString()
+            var instance_id = alarm_name.substring(
+                alarm_name.indexOf("-") + 1, 
+                alarm_name.lastIndexOf("-")
+            ).split("-", 2).join("-");
 
             console.info(instance_id)
 

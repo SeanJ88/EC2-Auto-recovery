@@ -162,9 +162,7 @@ resources:
                   Action:
                     -  ec2:StartInstances
                     -  ec2:StopInstances
-                  Condition:
-                    StringEquals:
-                      aws:ResourceTag/EC2_Auto_Recovery": 'Enabled'
+                    -  ec2:RebootInstances
                   Resource: 'arn:aws:ec2:${aws:region}:${aws:accountId}:instance/*'
                 - Effect: Allow
                   Action:
@@ -175,6 +173,20 @@ resources:
       Properties:
         TopicName: 'Datadog-EC2-SNS-Topic-${aws:accountId}-${aws:region}'
         DisplayName: EC2 recovery alarm activation pipeline
+    EC2DatadogSnsTopicPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: 
+                  - events.amazonaws.com
+                  - cloudwatch.amazonaws.com
+              Action: 'sns:Publish'
+              Resource: '*'
+        Topics:
+          - !Ref EC2DatadogSnsTopic
     EC2DataDogSnsSubscription:
       Type: AWS::SNS::Subscription
       Properties:
@@ -205,30 +217,6 @@ resources:
             Arn: 
               Ref: EC2DatadogSnsTopic
             Id: 'DataDogSNSTopic'
-    EventTopicPolicy:
-      Type: AWS::SNS::TopicPolicy
-      Properties:
-        PolicyDocument:
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: events.amazonaws.com
-              Action: 'sns:Publish'
-              Resource: '*'
-        Topics:
-          - !Ref EC2DatadogSnsTopic
-    CloudWatchTopicPolicy:
-      Type: AWS::SNS::TopicPolicy
-      Properties:
-        PolicyDocument:
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: cloudwatch.amazonaws.com
-              Action: 'sns:Publish'
-              Resource: '*'
-        Topics:
-          - !Ref EC2DatadogSnsTopic
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # EC2SubscriberDLQ:
     #   Type: AWS::SQS::Queue
