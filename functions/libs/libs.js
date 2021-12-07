@@ -240,7 +240,7 @@ async function reboot_ec2_instance(instance_id) {
             await ec2.rebootInstances({ InstanceIds: [instance_id] }).promise();
             reboot_count = reboot_count + 1
             console.info(reboot_count)
-            if (reboot_count == 5) {
+            if (reboot_count == 12) {
                 console.log('Instance is still in a failed state after 5 reboot attempts, move to force start stop')
                 instance_reachability_failed = true
                 return false
