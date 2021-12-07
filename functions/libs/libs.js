@@ -230,18 +230,17 @@ async function reboot_ec2_instance(instance_id) {
     await ec2.rebootInstances({ InstanceIds: [instance_id] }).promise();
 
     while (instance_successfully_restarted == false || instance_reachability_failed == false) {
-        const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-        await sleep(10000);
         var response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
 
         if (response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
             response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'failed') {
             console.info('Instance is still in a failed state, reboot instance again')
-            await ec2.rebootInstances({ InstanceIds: [instance_id] }).promise();
             reboot_count = reboot_count + 1
+            const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+            await sleep(10000);
             console.info(reboot_count)
             if (reboot_count == 12) {
-                console.log('Instance is still in a failed state after 5 reboot attempts, move to force start stop')
+                console.log('Instance is still in a failed state after 2 minutes after reboot, move to force start stop')
                 instance_reachability_failed = true
                 return false
             }
