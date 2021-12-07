@@ -19,7 +19,7 @@ function check_ec2_tag_exists_and_add_if_not(instance_id, tags) {
                         {
                             "AmiLaunchIndex": 0,
                             "ImageId": "ami-0abcdef1234567890",
-                            "InstanceId": "i-1234567890abcdef0",
+                            "InstanceId": "i-123456",
                             "InstanceType": "t2.micro",
                             "KeyName": "MyKeyPair",
                             "LaunchTime": "2018-05-10T08:05:20.000Z",
@@ -374,7 +374,7 @@ function reboot_ec2_instance(instance_id) {
                     {
                         "AmiLaunchIndex": 0,
                         "ImageId": "ami-0abcdef1234567890",
-                        "InstanceId": "i-1234567890abcdef0",
+                        "InstanceId": "i-123456",
                         "InstanceType": "t2.micro",
                         "KeyName": "MyKeyPair",
                         "LaunchTime": "2018-05-10T08:05:20.000Z",
@@ -751,7 +751,7 @@ function check_instance_criteria(instance_id) {
             {
                 "Domain": "vpc",
                 "PublicIpv4Pool": "amazon",
-                "InstanceId": "i-1234567890abcdef0",
+                "InstanceId": "i-123456",
                 "NetworkInterfaceId": "eni-12345678",
                 "AssociationId": "eipassoc-12345678",
                 "NetworkInterfaceOwnerId": "123456789012",
@@ -762,7 +762,7 @@ function check_instance_criteria(instance_id) {
         ]
     }
 
-    // var eip_response = ec2.describe-addresses({      
+    // var eip_response = ec2.describeAddresses({      
     //     Filters: [
     //     {
     //         'Name': 'EC2_Auto_Recovery',
@@ -783,11 +783,11 @@ function check_instance_criteria(instance_id) {
         {
             "InstanceId": "i-123456",
             "InstanceInitiatedShutdownBehavior": {
-                "Value": "terminate"
+                "Value": "stop"
             }
         }
 
-        if (shutdown_behaviour_response['InstanceId'] == instance_id && shutdown_behaviour_response['InstanceInitiatedShutdownBehavior']['Value'] == 'stop') {
+        if (shutdown_behaviour_response['InstanceId'] == instance_id && shutdown_behaviour_response['InstanceInitiatedShutdownBehavior']['Value'] == 'terminate') {
             return response = 'Instance has InstanceInitiatedShutdownBehavior set to Terminate'
         }
         else {
@@ -816,39 +816,176 @@ function stop_start_instance(instance_id) {
 
         var stop_response =
         {
-            "InstanceStatuses": [
+            "Reservations": [
                 {
-                    "InstanceId": "i-123456",
-                    "InstanceState": {
-                        "Code": 16,
-                        "Name": "stopped"
-                    },
-                    "AvailabilityZone": "us-east-1d",
-                    "SystemStatus": {
-                        "Status": "ok",
-                        "Details": [
-                            {
-                                "Status": "passed",
-                                "Name": "reachability"
+                    "Groups": [],
+                    "Instances": [
+                        {
+                            "AmiLaunchIndex": 0,
+                            "ImageId": "ami-0d37e07bd4ff37148",
+                            "InstanceId": "i-0132ae0d9c3cf594f",
+                            "InstanceType": "t3.micro",
+                            "KeyName": "sean-test",
+                            "LaunchTime": "2021-12-07T18:38:12+00:00",
+                            "Monitoring": {
+                                "State": "disabled"
+                            },
+                            "Placement": {
+                                "AvailabilityZone": "eu-west-2a",
+                                "GroupName": "",
+                                "Tenancy": "default"
+                            },
+                            "PrivateDnsName": "ip-192-168-128-86.eu-west-2.compute.internal",
+                            "PrivateIpAddress": "192.168.128.86",
+                            "ProductCodes": [],
+                            "PublicDnsName": "ec2-18-135-156-99.eu-west-2.compute.amazonaws.com",
+                            "PublicIpAddress": "18.135.156.99",
+                            "State": {
+                                "Code": 0,
+                                "Name": "stopped"
+                            },
+                            "StateTransitionReason": "",
+                            "SubnetId": "subnet-02b4f7567736bc53f",
+                            "VpcId": "vpc-0e9ff222384d3f68b",
+                            "Architecture": "x86_64",
+                            "BlockDeviceMappings": [
+                                {
+                                    "DeviceName": "/dev/xvda",
+                                    "Ebs": {
+                                        "AttachTime": "2021-12-07T10:37:44+00:00",
+                                        "DeleteOnTermination": true,
+                                        "Status": "attaching",
+                                        "VolumeId": "vol-05fc2be7f401a92fc"
+                                    }
+                                }
+                            ],
+                            "ClientToken": "",
+                            "EbsOptimized": true,
+                            "EnaSupport": true,
+                            "Hypervisor": "xen",
+                            "IamInstanceProfile": {
+                                "Arn": "arn:aws:iam::480810688838:instance-profile/SSMInstanceProfile-Sean",
+                                "Id": "AIPAW74UM4FDLHDHM7L6F"
+                            },
+                            "NetworkInterfaces": [
+                                {
+                                    "Association": {
+                                        "IpOwnerId": "480810688838",
+                                        "PublicDnsName": "ec2-18-135-156-99.eu-west-2.compute.amazonaws.com",
+                                        "PublicIp": "18.135.156.99"
+                                    },
+                                    "Attachment": {
+                                        "AttachTime": "2021-12-07T10:37:43+00:00",
+                                        "AttachmentId": "eni-attach-0396bab3019605aa2",
+                                        "DeleteOnTermination": true,
+                                        "DeviceIndex": 0,
+                                        "Status": "attaching",
+                                        "NetworkCardIndex": 0
+                                    },
+                                    "Description": "Primary network interface",
+                                    "Groups": [
+                                        {
+                                            "GroupName": "seans-lambda-ec2-recovery-test",
+                                            "GroupId": "sg-0983cbdf46dd13691"
+                                        }
+                                    ],
+                                    "Ipv6Addresses": [],
+                                    "MacAddress": "06:14:94:50:3d:00",
+                                    "NetworkInterfaceId": "eni-00477c589c61466b0",
+                                    "OwnerId": "480810688838",
+                                    "PrivateDnsName": "ip-192-168-128-86.eu-west-2.compute.internal",
+                                    "PrivateIpAddress": "192.168.128.86",
+                                    "PrivateIpAddresses": [
+                                        {
+                                            "Association": {
+                                                "IpOwnerId": "480810688838",
+                                                "PublicDnsName": "ec2-18-135-156-99.eu-west-2.compute.amazonaws.com",
+                                                "PublicIp": "18.135.156.99"
+                                            },
+                                            "Primary": true,
+                                            "PrivateDnsName": "ip-192-168-128-86.eu-west-2.compute.internal",
+                                            "PrivateIpAddress": "192.168.128.86"
+                                        }
+                                    ],
+                                    "SourceDestCheck": true,
+                                    "Status": "in-use",
+                                    "SubnetId": "subnet-02b4f7567736bc53f",
+                                    "VpcId": "vpc-0e9ff222384d3f68b",
+                                    "InterfaceType": "interface"
+                                }
+                            ],
+                            "RootDeviceName": "/dev/xvda",
+                            "RootDeviceType": "ebs",
+                            "SecurityGroups": [
+                                {
+                                    "GroupName": "seans-lambda-ec2-recovery-test",
+                                    "GroupId": "sg-0983cbdf46dd13691"
+                                }
+                            ],
+                            "SourceDestCheck": true,
+                            "Tags": [
+                                {
+                                    "Key": "EC2_Auto_Recovery",
+                                    "Value": "Enabled"
+                                },
+                                {
+                                    "Key": "Name",
+                                    "Value": "sean-EC2-recovery-test"
+                                },
+                                {
+                                    "Key": "dd-monitoring",
+                                    "Value": "true"
+                                },
+                                {
+                                    "Key": "dd-mute",
+                                    "Value": "false"
+                                }
+                            ],
+                            "VirtualizationType": "hvm",
+                            "CpuOptions": {
+                                "CoreCount": 1,
+                                "ThreadsPerCore": 2
+                            },
+                            "CapacityReservationSpecification": {
+                                "CapacityReservationPreference": "open"
+                            },
+                            "HibernationOptions": {
+                                "Configured": false
+                            },
+                            "MetadataOptions": {
+                                "State": "stopped",
+                                "HttpTokens": "optional",
+                                "HttpPutResponseHopLimit": 1,
+                                "HttpEndpoint": "enabled",
+                                "HttpProtocolIpv6": "disabled"
+                            },
+                            "EnclaveOptions": {
+                                "Enabled": false
+                            },
+                            "PlatformDetails": "Linux/UNIX",
+                            "UsageOperation": "RunInstances",
+                            "UsageOperationUpdateTime": "2021-12-07T10:37:43+00:00",
+                            "PrivateDnsNameOptions": {
+                                "HostnameType": "ip-name",
+                                "EnableResourceNameDnsARecord": true,
+                                "EnableResourceNameDnsAAAARecord": false
                             }
-                        ]
-                    },
-                    "InstanceStatus": {
-                        "Status": "ok",
-                        "Details": [
-                            {
-                                "Status": "failed",
-                                "Name": "reachability"
-                            }
-                        ]
-                    }
+                        }
+                    ],
+                    "OwnerId": "480810688838",
+                    "ReservationId": "r-0a938f6746890cd99"
                 }
             ]
         }
+        
 
         console.log(JSON.stringify(stop_response))
 
-        if (stop_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'stopped') {
+        console.log(stop_response['Reservations'][0]['Instances'][0]['State']['Name'])
+
+        if (stop_response['Reservations'] && stop_response['Reservations'].length > 0 &&
+        stop_response['Reservations'][0]['Instances'].length > 0 && 
+        stop_response['Reservations'][0]['Instances'][0]['State']['Name'] == 'stopped') {
             instance_successfully_stopped = true
         }
         else {

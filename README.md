@@ -111,9 +111,9 @@ Resolver Lambda Invocation Cost:
   - 90 instances
   - 20% per week of failures = 90 x 0.20 x 4 = 72 invocations
   - Invocation Cost = $0.20 per 1M Requests = 72/1000000 = $0.20
-  - Duration - 3 minutes(180000) x $0.0000000083 = 0.001494 x 126 = $0.19
+  - Duration - 10 minutes(600000) x $0.0000000083 = 0.00498 x 126 = $0.62
   
-  Total Cost: $0.39 per month
+  Total Cost: $0.82 per month
 ```
 
 SNS Topic Cost
@@ -148,11 +148,11 @@ Total Charges First Month
 ```
  - Subscriber Lambda  - $0.39
  - CloudWatch Alarms  - $25.20
- - Resolver Lambda    - $0.39
+ - Resolver Lambda    - $0.82
  - SNS Topic Charges  - $2.00*
  - Additional Charges - $0.00
 
- Total First Month - $27.98
+ Total First Month - $28.41
  (90 instances needing alarms + 40% additional alarms per month)
  *Assuming we add the $2.00 cost of SNS pricing
 ```
@@ -162,11 +162,11 @@ Total Charges First Month
 ```
  - Subscriber Lambda  - $0.25
  - CloudWatch Alarms  - $7.20
- - Resolver Lambda    - $0.39
+ - Resolver Lambda    - $0.38
  - SNS Topic Charges  - $2.00*
  - Additional Charges - $0.00
 
-Total Per Month - $9.84
+Total Per Month - $8.93
 
 *Assuming we take the $2.00 cost of SNS pricing
 ```
@@ -196,11 +196,12 @@ In order to deploy the example, you need to run the following command:
 
 ```
 export AWS_PROFILE=profile
-serverless deploy --stage stage
+serverless deploy --stage stage --region region
 ```
 
 - Profile should be the Account you want to deploy to listed in your AWS Credentials File.
 - Stage should be the environment you want to deploy e.g dev/test/int/prod
+- Region should be the region you want to deploy. Defaults to eu-west-2 if not set.
 - :warning: If you do not have profiles set up then please assume the role for the account you want to deploy to and run the serverless deploy command :warning:
 
 

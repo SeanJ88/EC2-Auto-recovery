@@ -5,8 +5,6 @@ const sns_topic_arn = process.env.SNS_TOPIC_ARN
 
 module.exports.resolver = async (event, context) => {
 
-    console.log(JSON.stringify(event))
-
     try {
 
         var alert_message = JSON.parse(event['Records'][0]['Sns']['Message'])
@@ -17,18 +15,14 @@ module.exports.resolver = async (event, context) => {
 
     try {
 
-        if (alert_message['AlarmName'].includes('StatusCheckFailed_Instance')) {
+        if (alert_message['AlarmName'] && alert_message['AlarmName'].includes('StatusCheckFailed_Instance')) {
 
             var alarm_name = alert_message['AlarmName'].split(",").toString()
-
-            console.info(alarm_name)
 
             var instance_id = alarm_name.substring(
                 alarm_name.indexOf("-") + 1, 
                 alarm_name.lastIndexOf("-")
             ).split("-", 2).join("-");
-
-            console.info(instance_id)
 
             var response = await functions.reboot_ec2_instance(instance_id)
 
@@ -48,16 +42,13 @@ module.exports.resolver = async (event, context) => {
 
                 var ebs_volumes = await functions.check_ec2_ebs_type(instance_id)
 
-                console.info(ebs_volumes)
-
                 if (ebs_volumes) {
                     var ec2_check_response = await functions.check_instance_criteria(instance_id)
-                    console.info(ec2_check_response)
                     await functions.send_to_datadog(ec2_check_response, instance_id, sns_topic_arn)
                 }
                 else {
                     console.info('No EBS volume can be found, Instance must be an Instance Store or an unknown Volume Type')
-                    await functions.send_to_datadog('No EBS volume can be found, Instance must be an Instance Store or an unknown Volume Type', instance_id)
+                    await functions.send_to_datadog('No EBS volume can be found, Instance must be an Instance Store or an unknown Volume Type', instance_id, sns_topic_arn)
                 }
             }
         }

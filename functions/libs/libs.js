@@ -224,12 +224,14 @@ async function reboot_ec2_instance(instance_id) {
     if (instance['Reservations'] && instance['Reservations'].length > 0 &&
         instance['Reservations'][0]['Instances'].length > 0) {
         console.info('Tag EC2_Auto_Recovery has been disabled...aborting')
-        return None;
+        return 'Abort';
     }
 
     await ec2.rebootInstances({ InstanceIds: [instance_id] }).promise();
 
     while (instance_successfully_restarted == false || instance_reachability_failed == false) {
+        const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+        await sleep(10000);
         var response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
 
         if (response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
@@ -263,26 +265,30 @@ async function check_ec2_ebs_type(instance_id) {
 
         if (instance['Reservations'] && instance['Reservations'].length > 0 &&
             instance['Reservations'][0]['Instances'].length > 0) {
-            instance_info = instance['Reservations'][0]['Instances'][0]
+            var instance_info = instance['Reservations'][0]['Instances'][0]
         }
         else {
             console.info('No EC2 instance found')
             return false
         }
 
-        var volumes = instance_info['BlockDeviceMappings']
-
-        for (var volume of volumes) {
-            if (volume.includes('Ebs')) {
-                volume_ids.push(volume['Ebs']['VolumeId'])
-            }
-            else {
-                return false
-            }
+        if (instance_info['BlockDeviceMappings'] && instance_info['BlockDeviceMappings'].length > 0 ) {
+            var volumes = instance_info['BlockDeviceMappings']
         }
-        return volume_ids
+
+        if (volumes) {
+            for (var volume of volumes) {
+                if (volume['Ebs']) {
+                    volume_ids.push(volume['Ebs']['VolumeId'])
+                }
+                else {
+                    return false
+                }
+            }
+            return volume_ids
+        }
     } catch (e) {
-        console.error('Failure describing instance %s', instance_id)
+        console.error('Failure describing instance or there is an issue describing the EBS Volumes %s', instance_id)
     }
 }
 
@@ -296,26 +302,25 @@ async function check_instance_criteria(instance_id) {
         return response = 'Instance belongs to an AutoScalingGroup'
     }
 
-    var eip_response = await ec2.describeAddresses({
+    var eip_response = await ec2.describeAddresses({      
         Filters: [
-            {
-                'Name': 'tag:EC2_Auto_Recovery',
-                'Values': [
-                    'Enabled'
-                ]
-            }
-        ]
-    }).promise();
+        {
+            'Name': 'instance-id',
+            'Values': [
+                instance_id
+            ]
+        }
+    ]}).promise();
 
     if (eip_response['Addresses'] && eip_response['Addresses'].length > 0 && eip_response['Addresses'][0]['InstanceId'] == instance_id) {
         console.info('Instance Has an EIP Attached')
 
         var shutdown_behaviour_response = await ec2.describeInstanceAttribute({
-            InstanceId: InstanceId,
+            InstanceId: instance_id,
             Attribute: 'instanceInitiatedShutdownBehavior'
         }).promise();
 
-        if (shutdown_behaviour_response['InstanceId'] == instance_id && shutdown_behaviour_response['InstanceInitiatedShutdownBehavior']['Value'] == 'stop') {
+        if (shutdown_behaviour_response['InstanceId'] == instance_id && shutdown_behaviour_response['InstanceInitiatedShutdownBehavior']['Value'] == 'terminate') {
             return response = 'Instance has InstanceInitiatedShutdownBehavior set to Terminate'
         }
         else {
@@ -334,45 +339,58 @@ async function stop_start_instance(instance_id) {
 
     var instance_successfully_stopped = false
     var instance_successfully_running = false
+    var countUntilForceStop = 0
 
     console.info('Stopping Instance with ID: %s', instance_id)
 
-    await ec2.stopInstances({ InstanceIds: instance_id }).promise();
+    await ec2.stopInstances({ InstanceIds: [instance_id] }).promise();
 
     while (instance_successfully_stopped == false) {
-        var stop_response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
 
-        console.log(JSON.stringify(stop_response))
-
-        if (stop_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'stopped') {
+        var stop_response = await ec2.describeInstances({ InstanceIds: [instance_id] }).promise();
+        if (stop_response['Reservations'] && stop_response['Reservations'].length > 0 &&
+        stop_response['Reservations'][0]['Instances'].length > 0 && 
+        stop_response['Reservations'][0]['Instances'][0]['State']['Name'] == 'stopped') {
             instance_successfully_stopped = true
         }
         else {
             console.info('Instance is still stopping, wait until stopped')
+            const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+            await sleep(10000);
+            countUntilForceStop = countUntilForceStop + 1;
+        }
+        if (countUntilForceStop === 12) {
+            console.info("Two Minutes Have Passed Since Instance In Stopping State, Force Stop Instance")
+            await ec2.stopInstances({ InstanceIds: [instance_id], Force: true }).promise();
+            countUntilForceStop = 0;
         }
     }
 
     console.info('Starting Instance with ID: %s', instance_id)
 
-    await ec2.startInstances({ InstanceIds: instance_id }).promise();
+    await ec2.startInstances({ InstanceIds: [instance_id] }).promise();
 
     while (instance_successfully_running == false) {
         var start_response = await ec2.describeInstanceStatus({ InstanceIds: [instance_id] }).promise();
 
-        if (start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
+        if (start_response['InstanceStatuses'] && start_response['InstanceStatuses'].length >0 &&
+            start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
             start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
             start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'passed') {
             console.log('Instance is in a running state from stop/start, all checks passed')
             instance_successfully_running = true
             return 'Instance is in a running state from stop/start, all checks passed'
         }
-        else if (start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
+        else if (start_response['InstanceStatuses'] && start_response['InstanceStatuses'].length >0 &&
+            start_response['InstanceStatuses'][0]['InstanceState']['Name'] == 'running' &&
             start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Name'] == 'reachability' &&
             start_response['InstanceStatuses'][0]['InstanceStatus']['Details'][0]['Status'] == 'failed') {
             return 'Instance has been stopped/started but has still failed an instance check'
         }
         else {
-            console.info('Instance is still starting, wait until running')
+            console.info('Instance is still starting, wait until running and checks have passed')
+            const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+            await sleep(10000);
         }
     }
 }
@@ -388,8 +406,6 @@ async function send_to_datadog(event, instance_id, sns_topic_arn) {
         Subject: "EC2 Recovery Lambda Response",
         TopicArn: sns_topic_arn
     };
-
-    console.info(params)
 
     await sns.publish(params).promise();
 }
