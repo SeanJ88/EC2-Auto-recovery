@@ -198,8 +198,8 @@ resources:
     EC2DataDogSnsSubscription:
       Type: AWS::SNS::Subscription
       Properties:
-        Endpoint: event-1i8bqltl@dtdg.co
-        Protocol: email-json
+        Endpoint: event-2i3qekg3@dtdg.co
+        Protocol: email
         TopicArn: !Ref EC2DatadogSnsTopic
     EC2RecoveryCloudWatchRule:
       Type: AWS::Events::Rule
