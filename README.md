@@ -177,6 +177,10 @@ Total Per Month - $8.93
 - dd-monitoring - true
 - dd-mute - false
 
+The Instances will be tagged with:
+
+- [{"Key": "EC2_Auto_Recovery", "Value": "Enabled"}]
+
 If the above is set to any different, then the Lambda will not subscribe and auto add tags/alarms to the instance.
 
 The functionality of the Lambda also only listens to newly 'running' or 'terminated' instances.
