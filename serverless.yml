@@ -68,7 +68,7 @@ functions:
   resolver:
     name: 'EC2-recovery-lambda-resolver-function-${aws:accountId}-${aws:region}'
     handler: "functions/resolver/handler.resolver"
-    timeout: 900
+    timeout: 1200
     memorySize: 512
     environment:
           SNS_TOPIC_ARN: !Ref EC2DatadogSnsTopic

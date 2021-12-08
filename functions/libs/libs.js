@@ -239,8 +239,8 @@ async function reboot_ec2_instance(instance_id) {
             const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
             await sleep(10000);
             console.info(reboot_count)
-            if (reboot_count == 12) {
-                console.log('Instance is still in a failed state after 2 minutes after reboot, move to force start stop')
+            if (reboot_count == 30) {
+                console.log('Instance is still in a failed state after 5 minutes after reboot, move to force start stop')
                 instance_reachability_failed = true
                 return false
             }
@@ -358,8 +358,8 @@ async function stop_start_instance(instance_id) {
             await sleep(10000);
             countUntilForceStop = countUntilForceStop + 1;
         }
-        if (countUntilForceStop === 12) {
-            console.info("Two Minutes Have Passed Since Instance In Stopping State, Force Stop Instance")
+        if (countUntilForceStop === 30) {
+            console.info("Five Minutes Have Passed Since Instance In Stopping State, Force Stop Instance")
             await ec2.stopInstances({ InstanceIds: [instance_id], Force: true }).promise();
             countUntilForceStop = 0;
         }
