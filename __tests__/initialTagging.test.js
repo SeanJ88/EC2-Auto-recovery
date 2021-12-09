@@ -1,4 +1,4 @@
-const handler = require('../jest/mockfunction/handler.initialTags');
+const handler = require('../jest/mockfunction/handler.initialTagging');
 
 
 const enabled = 

@@ -8,7 +8,7 @@ const tag_string = process.env.TAGS
 const sns_topic_arn = process.env.SNS_TOPIC_ARN
 const region = process.env.REGION
 
-module.exports.initialTags = async (event, context) => {
+module.exports.initialTagging = async (event, context) => {
   try {
 
     if (event['state']) {

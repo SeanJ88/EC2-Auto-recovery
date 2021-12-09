@@ -12,7 +12,7 @@ const region = process.env.REGION
 const examples = require('./ec2-examples.json')
 
 
-module.exports.initialTags = async (event, context) => {
+module.exports.initialTagging = async (event, context) => {
   try {
     console.info(event)
 
