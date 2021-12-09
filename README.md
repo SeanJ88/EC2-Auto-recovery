@@ -1,6 +1,6 @@
 <!--
 title: 'AWS NodeJS EC2 Auto Subscribe Alarm And Recovery Lambda'
-description: 'This template demonstrates how to deploy two NodeJS functions running on AWS Lambda using the traditional Serverless Framework. The First Lambda will Subscribe Each EC2 Instance matching a criteria and Auto Create Cloudwatch Recovery Alarms for System Status and Instance Status Failures. The Second Lambda is a Recovery Lambda which will respond to a SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific critera. The Second Lambda will then send to an SNS Topic with the Results.' 
+description: 'This template demonstrates how to deploy three NodeJS functions running on AWS Lambda using the traditional Serverless Framework. The First Lambda will Take in a manual JSON Payload that will tag all instances matching a criteria and create Create Cloudwatch Recovery Alarms for System Status and Instance Status Failures. The second Lambda will Subscribe Each new running EC2 Instance matching a criteria and Auto Create Cloudwatch Recovery Alarms for System Status and Instance Status Failures. The Third Lambda is a Recovery Lambda which will respond to a SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific criteria. The Third Lambda will then send to an SNS Topic with the Results.' 
 layout: Doc 
 framework: v2 
 platform: AWS 
@@ -12,21 +12,20 @@ companyName: 'DevOpsGroup'
 -->
 # AWS NodeJS EC2 Auto Subscribe Alarm And Recovery Lambda
 
-This template demonstrates how to deploy two NodeJS functions running on AWS Lambda using the traditional Serverless Framework. 
+This template demonstrates how to deploy three NodeJS functions running on AWS Lambda using the traditional Serverless Framework. 
 
-The First Lambda will Subscribe Each EC2 Instance matching a criterion and Auto Create CloudWatch Recovery Alarms for System Status and Instance Status Failures. 
+The First Lambda will Take in a manual JSON Payload that will tag all instances matching a criterion and create Cloudwatch Recovery Alarms for System Status and Instance Status Failures. 
 
-The Second Lambda is a Recovery Lambda which will respond to an SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific criterion. 
+The second Lambda will Subscribe Each new running EC2 Instance matching a criterion and Auto Create CloudWatch Recovery Alarms for System Status and Instance Status Failures. 
 
-The Second Lambda will then send to an SNS Topic with the Results.
-
+The Third Lambda is a Recovery Lambda which will respond to a SNS Topic Trigger from the CloudWatch Alarms set up by the First Lambda and will Auto Restart the Instance for an Instance Status Failure, If unsuccessful then the Lambda will FORCE STOP and FORCE START the Instance if meeting a specific criterion. The Third Lambda will then send to an SNS Topic with the Results.
 
 ## Infrastructure
 
 In this repository we are deploying the following:
 
 ```
-- 2 x Lambdas
+- 3 x Lambdas
 - 1 x SNS Topic
 - 2 x SNS Topic Policies (1 x events, 1 x cloudwatch)
 - 1 x IAM Role
@@ -42,7 +41,7 @@ This is all created in the [Serverless.yml](https://github.com/SeanJ88/EC2-Auto-
 
 ### Infrastructure Diagram
 
-![](images/EC2_Recovery.jpeg)
+![](images/EC2_Recovery.jpg)
 
 ### Infrastructure Cost
 
@@ -187,7 +186,7 @@ The functionality of the Lambda also only listens to newly 'running' or 'termina
 
 The Lambda will not auto tag Instances that are currently in a running state before the Lambda deployment.
 
-If you want current instances to have auto recovery enabled then these instances must first be stopped and then put back into a running state for the Lambda to trigger.
+If you want current instances to have auto recovery enabled then the initial tagging lambda needs to be run first. This Lambda will only tag Instances with the same criterion as the Auto subscribe Lambda.
 ### Prerequisites
 
 - Serverless Framework Installed - v2.x.x or higher
@@ -213,8 +212,28 @@ This deployment should only be deployed once per Account.
 I'd recommend if you have an Int account and Dev account in the same account. Then deploy the Lambda with the stage int
 ### Invocation
 
-After successful deployment, Invocation will be done automatically 
-by AWS CloudWatch and SNS Topic Triggers.
+After successful deployment, Invocation will be done automatically by AWS CloudWatch and SNS Topic Triggers.
+
+For triggering the Initial Tagging Lambda, you can do the following.
+
+If you are invoking via the console then please make sure the test event matches the following JSON:
+
+```
+{
+    "state": "Enabled"
+}
+```
+
+```
+serverless invoke --function <function> --stage <stage> --region <region> --path data/<filename>.json
+```
+
+- function - is the name of the function to invoke
+- stage - is the environment e.g. dev
+- region - is the region you want to invoke it in e.g. us-west-2
+- path - is the patch to the file you want to use e.g. data/enabled.js 
+
+
 
 ### Local development
 
@@ -251,6 +270,12 @@ the correct Criteria to fully test the Resolver Lambda.
 
 Local testing has been done to test each function and each logic
 step by step to test each edge case.
+
+Testing can be done by running the following command:
+
+```
+npm run test
+```
 
 ### Suggested Improvements
 

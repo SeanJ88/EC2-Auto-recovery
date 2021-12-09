@@ -37,6 +37,18 @@ provider:
 # ------------------------- #
 
 functions:
+  InitialTagging:
+    name: 'Initial-Tagging-Lambda-Function-${aws:accountId}-${aws:region}'
+    handler: "functions/skip/handler.initialTagging"
+    memorySize: 512
+    environment:
+          TAGS: '[{"Key": "EC2_Auto_Recovery", "Value": "Enabled"}]'
+          SNS_TOPIC_ARN: !Ref EC2DatadogSnsTopic
+          REGION: ${aws:region}
+# Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
+    # deadLetter:
+    #   targetArn:
+    #     GetResourceArn: !Ref SkipPatchingLambdaDLQ
   subscriber:
     name: 'EC2-recovery-lambda-subscriber-function-${aws:accountId}-${aws:region}'
     handler: "functions/subscriber/handler.subscriber"
@@ -57,9 +69,7 @@ functions:
                 state:
                   - running
                   - terminated
-            enabled: true
-
-            
+            enabled: true   
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # deadLetter:
     #   targetArn:

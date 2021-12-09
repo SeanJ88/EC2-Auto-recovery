@@ -2,3 +2,4 @@ node_modules
 .serverless
 .gitignore
 .DS_Store
+jest/mockfunction/ec2-examples.json
