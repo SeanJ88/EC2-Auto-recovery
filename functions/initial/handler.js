@@ -38,19 +38,23 @@ module.exports.initial = async (event, context) => {
 
         for (const instance of instances['Reservations']) {
 
+          var tags = JSON.parse(tag_string);
+
           var instance_id = instance['Instances'][0]['InstanceId']
 
-          var params = { Resources: [instance_id], Tags: tag_string }
+          var params = { Resources: [instance_id], Tags: tags }
+
+          await ec2.createTags(params).promise();
 
           var ImageId = instance['Instances'][0]['ImageId']
 
           console.info('ImageId is: %s', ImageId)
 
-          var platform = functions.determine_platform(ImageId)
+          var platform = await functions.determine_platform(ImageId)
 
           console.info('Platform is: %s', platform)
 
-          var alarm = functions.create_alarm(instance_id, platform, sns_topic_arn, region)
+          var alarm = await functions.create_alarm(instance_id, platform, sns_topic_arn, region)
 
           console.info('Created Tags and Alarms on Instance ID: %s with Tag: %s', instance_id, tag_string)
         }
