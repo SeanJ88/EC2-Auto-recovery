@@ -37,9 +37,9 @@ provider:
 # ------------------------- #
 
 functions:
-  InitialTagging:
-    name: 'EC2-recovery-lambda-initialTag-Function-${aws:accountId}-${aws:region}'
-    handler: "functions/initialTagging/handler.initialTagging"
+  initial:
+    name: 'EC2-recovery-lambda-initial-Function-${aws:accountId}-${aws:region}'
+    handler: "functions/initial/handler.initial"
     memorySize: 512
     environment:
           TAGS: '[{"Key": "EC2_Auto_Recovery", "Value": "Enabled"}]'
@@ -239,7 +239,7 @@ resources:
     # EC2InitialTaggingLambdaDLQ:
     #   Type: AWS::SQS::Queue
     #   Properties:
-    #     QueueName: 'EC2-Recovery-initialTag-lambda-DLQ-${aws:accountId}-${aws:region}'
+    #     QueueName: 'EC2-Recovery-initial-lambda-DLQ-${aws:accountId}-${aws:region}'
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # EC2SubscriberLambdaDLQ:
     #   Type: AWS::SQS::Queue
