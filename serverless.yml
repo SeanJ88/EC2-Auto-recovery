@@ -38,7 +38,7 @@ provider:
 
 functions:
   InitialTagging:
-    name: 'Initial-Tagging-Lambda-Function-${aws:accountId}-${aws:region}'
+    name: 'EC2-recovery-lambda-initialTagging-Function-${aws:accountId}-${aws:region}'
     handler: "functions/skip/handler.initialTagging"
     memorySize: 512
     environment:
@@ -48,7 +48,7 @@ functions:
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # deadLetter:
     #   targetArn:
-    #     GetResourceArn: !Ref SkipPatchingLambdaDLQ
+    #     GetResourceArn: !Ref EC2InitialTaggingLambdaDLQ
   subscriber:
     name: 'EC2-recovery-lambda-subscriber-function-${aws:accountId}-${aws:region}'
     handler: "functions/subscriber/handler.subscriber"
@@ -73,7 +73,7 @@ functions:
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # deadLetter:
     #   targetArn:
-    #     GetResourceArn: !Ref EC2DatadogSnsTopic
+    #     GetResourceArn: !Ref EC2SubscriberLambdaDLQ
 
   resolver:
     name: 'EC2-recovery-lambda-resolver-function-${aws:accountId}-${aws:region}'
@@ -89,7 +89,7 @@ functions:
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
     # deadLetter:
     #   targetArn:
-    #     GetResourceArn: !Ref EC2DatadogSnsTopic
+    #     GetResourceArn: !Ref EC2ResolverLambdaDLQ
 
 # ------------------------ #
 # CloudFormation Resources #
@@ -236,13 +236,18 @@ resources:
               Ref: EC2DatadogSnsTopic
             Id: 'DataDogSNSTopic'
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
-    # EC2SubscriberDLQ:
+    # EC2InitialTaggingLambdaDLQ:
     #   Type: AWS::SQS::Queue
     #   Properties:
-    #     QueueName: 'EC2-alarm-subscriber-DLQ-${aws:accountId}-${aws:region}'
+    #     QueueName: 'EC2-Recovery-initialTagging-lambda-DLQ-${aws:accountId}-${aws:region}'
 # Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
-    # EC2ResolverDLQ:
+    # EC2SubscriberLambdaDLQ:
     #   Type: AWS::SQS::Queue
     #   Properties:
-    #     QueueName: 'EC2-alarm-resolver-DLQ-${aws:accountId}-${aws:region}'
+    #     QueueName: 'EC2-Recovery-subscriber-lambda-DLQ-${aws:accountId}-${aws:region}'
+# Deadletter plugin currently broken in serverless 2.x fix currently open at: https://github.com/gmetzker/serverless-plugin-lambda-dead-letter/issues/46
+    # EC2ResolverLambdaDLQ:
+    #   Type: AWS::SQS::Queue
+    #   Properties:
+    #     QueueName: 'EC2-Recovery-resolver-lambda-DLQ-${aws:accountId}-${aws:region}'
 
