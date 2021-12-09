@@ -39,7 +39,7 @@ provider:
 functions:
   InitialTagging:
     name: 'EC2-recovery-lambda-initialTag-Function-${aws:accountId}-${aws:region}'
-    handler: "functions/skip/handler.initialTagging"
+    handler: "functions/initialTagging/handler.initialTagging"
     memorySize: 512
     environment:
           TAGS: '[{"Key": "EC2_Auto_Recovery", "Value": "Enabled"}]'
